@@ -1,3 +1,4 @@
+#! /usr/bin/python
 import os
 
 import matplotlib.pyplot as plt
@@ -7,18 +8,19 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 class SpecNormalize():
     """Interactivly fit the continuum of a spectra and normalize it."""
-    def __init__(self, rawspec=0, order=0):
+    def __init__(self, rawspec=0, header=0, order=0):
         self.editting_fit = False 
         self.pick = 0     
         self.order = order
-        self.rawspec, header = pyfits.getdata(rawspec, 0, header=True)
-        self.objectn = header['object'].split('-')[0]
-        self.objectd = header['UTSHUT'].split('T')[0]
-        self.norm = np.copy(self.rawspec)
-        self.fit = np.copy(self.rawspec)
-        num_orders = int(np.shape(self.rawspec)[0])
-        self.fitted = [False] * num_orders
-        self.fitpoints = np.zeros((num_orders,50,2)) #max # fit points is 50.
+        if type(rawspec) != 'array':
+            self.rawspec = rawspec
+            self.objectn = header['object'].split('-')[0]
+            self.objectd = header['UTSHUT'].split('T')[0]
+            self.norm = np.copy(self.rawspec)
+            self.fit = np.copy(self.rawspec)
+            num_orders = int(np.shape(self.rawspec)[0])
+            self.fitted = [False] * num_orders
+            self.fitpoints = np.zeros((num_orders,50,2)) # Max # fit points
         self.fig1 = plt.figure(1)
         self.ax = plt.subplot2grid((5,1), (0, 0), rowspan=4)
         self.ax2 = self.fig1.add_subplot(5,1,5)
@@ -41,7 +43,7 @@ class SpecNormalize():
           
                     
     def _key_press(self, event):
-        """Map key precess to various functions"""
+        """Map keys to various methods/operations"""
         
         # If you are in edit mode (hitting e after a fit has been made with f)
         if (self.editting_fit == True and event.key in 
@@ -65,7 +67,7 @@ class SpecNormalize():
             self.ax.scatter(self.fitpoints[self.order,self.pick,0],
                             self.fitpoints[self.order,self.pick,1],s=mark_size, 
                             marker='+', color='black', zorder=3)
-            self.ax2.scatter(self.fitpoints[self.order,pickx,0], 1,
+            self.ax2.scatter(self.fitpoints[self.order,self.qpick,0], 1,
                              s=mark_size, marker='+', color='black', zorder=3)
             self.fig1.canvas.draw()
             return
@@ -252,7 +254,9 @@ class SpecNormalize():
 
 
 if __name__ == '__main__':
-    x = SpecNormalize('HRCar-2013-02-19-Median.fits')
+    rawspec, header = pyfits.getdata('HRCar-2013-02-19-Median.fits', 0, 
+                                      header=True)
+    x = SpecNormalize(rawspec, header)
 
     
 
