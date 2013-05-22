@@ -1,6 +1,6 @@
 (lp0
 I01
-aI00
+aI01
 aI00
 aI00
 aI00

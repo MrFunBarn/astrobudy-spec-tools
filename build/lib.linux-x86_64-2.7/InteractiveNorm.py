@@ -27,27 +27,20 @@ class SpecNormalize():
                                                  self._click_event)
         self.cid2 = self.fig1.canvas.mpl_connect('key_press_event',
                                                  self._key_press)
-
-
-    def start_norm(self):
         self.base_draw()
         plt.show()
 
 
-    def read_pickle(self) :
-        self.norm = pickle.load( open(
-                                self.objectn+'-'+self.objectd+'-norm.p', 'rb'))
-        self.fit = pickle.load( open(
-                               self.objectn+'-'+self.objectd+'-fit.p', 'rb'))
-        self.fitted = pickle.load( open(
-                                  self.objectn+'-'+self.objectd+'-fitted.p',
-                                  'rb'))
-        self.fitpoints = pickle.load( open(self.objectn+'-'+
-                                     self.objectd+'-fitpoints.p', 'rb'))
-        self.objectn = pickle.load( open(self.objectn+'-'+self.objectd+
-                                   '-objectn.p', 'rb'))
-        self.objectd = pickle.load( open(self.objectn+'-'+self.objectd+
-                                   '-objectd.p', 'rb'))
+    def read_pickle(self, rawspec):
+        self.norm = pickle.dump( open(objectn+'-'+objectd+'-norm.p', 'rb'))
+        self.fit = pickle.dump( open(objectn+'-'+objectd+'-fit.p', 'rb'))
+        self.fitted = pickle.dump( open(objectn+'-'+objectd+'-fitted.p', 'rb'))
+        self.fitpoints = pickle.dump( open(objectn+'-'+objectd+'-fitpoints.p',
+                    'rb'))
+        self.objectn = pickle.dump( open(objectn+'-'+objectd+'-objectn.p',
+                    'rb'))
+        self.objectd = pickle.dump( open(objectn+'-'+objectd+'-objectd.p',
+                    'rb'))
 
 
     def write_pickle(self):
@@ -130,7 +123,7 @@ class SpecNormalize():
                 self.fig1.canvas.draw()
 
         # Fit a spline and redarw plots.
-        if event.key == 'f' and self.editting_fit == False:
+        if event.key == 'f':
             self.fitted[self.order] = True
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
@@ -148,7 +141,7 @@ class SpecNormalize():
         # prevent unintended trigering.
         if event.key == 'N':
             if self.editting_fit == False:
-                if type(self.order) == 'list': pass
+                if type(order) == 'list': pass
                 if self.order < ((np.shape(self.rawspec)[0])-1):
                     self.order = self.order + 1
                     self.base_draw()
@@ -164,6 +157,7 @@ class SpecNormalize():
                     self.editting_fit = False
 
         if event.key == 'W':
+            print('Pickling')
             self.write_pickle()
 
 
@@ -295,5 +289,3 @@ if __name__ == '__main__':
     rawspec, header = pyfits.getdata('HRCar-2013-02-19-Median.fits', 0,
                                       header=True)
     x = SpecNormalize(rawspec, header)
-    x.read_pickle()
-    x.start_norm()
