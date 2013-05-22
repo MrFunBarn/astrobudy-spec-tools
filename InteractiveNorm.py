@@ -120,6 +120,7 @@ class SpecNormalize():
             self.fig1.canvas.draw()
             self.fitpoints[self.order,:,:] = 0
             self.fitted[self.order] = False
+            self.smoothed = False
 
         # Safely disconect the canvas and close the figure or, if editting the
         # fit, leave editting mode and go back to browse/select mode.
