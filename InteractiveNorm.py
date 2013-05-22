@@ -1,4 +1,5 @@
 #! /usr/bin/python
+import math
 import pickle
 
 import matplotlib.pyplot as plt
@@ -11,15 +12,17 @@ class SpecNormalize():
     def __init__(self, rawspec, header, order=0):
         self.editting_fit = False
         self.pick = 0
+        self.smoothed = False
         self.order = order
         self.rawspec = rawspec
         self.objectn = header['object'].split('-')[0]
         self.objectd = header['UTSHUT'].split('T')[0]
         self.norm = np.copy(self.rawspec)
         self.fit = np.copy(self.rawspec)
-        num_orders = int(np.shape(self.rawspec)[0])
-        self.fitted = [False] * num_orders
-        self.fitpoints = np.zeros((num_orders,50,2)) # Max # fit points
+        self.sm = np.copy(self.rawspec)
+        self.num_orders = int(np.shape(self.rawspec)[0])
+        self.fitted = [False] * self.num_orders
+        self.fitpoints = np.zeros((self.num_orders,50,2)) # Max # fit points
         self.fig1 = plt.figure(1)
         self.ax = plt.subplot2grid((5,1), (0, 0), rowspan=4)
         self.ax2 = self.fig1.add_subplot(5,1,5)
@@ -148,7 +151,6 @@ class SpecNormalize():
         # prevent unintended trigering.
         if event.key == 'N':
             if self.editting_fit == False:
-                if type(self.order) == 'list': pass
                 if self.order < ((np.shape(self.rawspec)[0])-1):
                     self.order = self.order + 1
                     self.base_draw()
@@ -166,6 +168,15 @@ class SpecNormalize():
         if event.key == 'W':
             self.write_pickle()
 
+        if event.key == 'b':
+            self.smooth3(self.rawspec)
+            self.base_draw()
+            self.fig1.canvas.draw()
+
+        if event.key == 'B':
+            self.smoothed = False
+            self.base_draw()
+            self.fig1.canvas.draw()
 
     def quit(self):
         """Cleanly quit the normalization processes."""
@@ -199,7 +210,11 @@ class SpecNormalize():
         self.ax2.set_xlim(self.xmin, self.xmax)
         self.ax2.plot(self.norm[self.order,:,0,],
                               self.norm[self.order,:,1], color='blue')
-        self.ax.plot(self.rawspec[self.order,:,0],self.rawspec[self.order,:,1])
+        if self.smoothed ==True:
+            self.ax.plot(self.sm[self.order,:,0],self.sm[self.order,:,1])
+        else:
+            self.ax.plot(self.rawspec[self.order,:,0],
+                         self.rawspec[self.order,:,1])
 
 
     def spline_fit_and_plot(self):
@@ -291,9 +306,21 @@ class SpecNormalize():
         self.pick = pickx
 
 
+    def smooth3(self, x):
+       sm = np.copy(self.rawspec)
+       nelm = np.shape(x)[1]
+       sm = np.zeros( (self.num_orders,int(math.floor(nelm/3)),2) )
+       for o in range(self.num_orders):
+           for i in range(int(math.floor(nelm/3))):
+              n=3*i
+              sm[o,i,0] = ( x[o,n,0] + x[o,n+1,0] + x[o,n+2,0] ) / 3
+              sm[o,i,1] = ( x[o,n,1] + x[o,n+1,1] + x[o,n+2,1] ) / 3
+       self.sm = sm
+       self.smoothed = True
+
+
 if __name__ == '__main__':
     rawspec, header = pyfits.getdata('HRCar-2013-02-19-Median.fits', 0,
                                       header=True)
     x = SpecNormalize(rawspec, header)
-    x.read_pickle()
     x.start_norm()

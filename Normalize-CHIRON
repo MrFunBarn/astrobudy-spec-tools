@@ -12,6 +12,7 @@ from matplotlib.ticker import MultipleLocator
 import pyfits # From the space telescope science institute.
 
 import InteractiveNorm
+
 # Normalize-CHIRON version 2.0.3 -Beta
 # Written by Brandon Bell April 2013
 #
@@ -27,39 +28,7 @@ filename = sys.argv[1]
 if len(sys.argv) == 3:
     renormfile = sys.argv[2]
     renorm = True
-print('Normalize-CHIRON Version 2.0.3 -Beta\n')
-print("""    Normalize-CHIRON will normalize the orders you want, and then make tarballs
-containing two columb text files of the normalized data and fit function at
-each order, plots of the fit function at each order, and finally a whole
-spectrum plot and fits file containing the new data. Final output should
-produce only 5 files.\n""")
-if renorm == True:
-    print('  -> Enter the orders to re-normalize' \
-          ' separated by commas and hit enter.')
-else:
-    print('  -> Enter the orders to normalize' \
-          ' separated by commas and hit enter.')
-print('  -> To normalize all orders just hit enter.')
-print("  -> Order #'s begin at 0 not 1.")
-print("  -> Order #'s don't need to be in order, and spaces are ok.")
-print('  -> No trailing commas please.\n')
-
-# Get the list of orders to normalize or set up to do all the orders.
-try:
-    inp = input("Orders: ")
-    try:
-        inpl=list(inp)
-    except:
-        inps=str(inp)
-    if len(str(inp)) <= 2:
-        inps = inps.split(',')[0]
-        orders = int(inps)
-        orders = [orders]
-    else:
-        o = [int(x) for x in inpl]
-        orders = o
-except:
-    orders = range(62)
+orders = range(62)
 
 # Read in the fits file(s) and retirve header info for latter use.
 spec, header = pyfits.getdata(filename, 0, header=True)
@@ -69,23 +38,14 @@ objectn = header['object']
 objectn = objectn.split('-')[0] #in case of combined name and date.
 objectd = header['UTSHUT']
 objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
-root = filename.split('/')[0]
 
 # Variables for the whole spec plot tick labeling.
 majorLocator   = MultipleLocator(100)
 minorLocator   = MultipleLocator(25)
 
-# Define the new array to be filled with the normalized values.
-normspec = np.copy(spec)
-
-def norm(idl):
-    "norm calls idl on the array of flux values to interactivly normalize it."
-    # Run the IDL routine to normalize the function.
-    cmd = 'idl "specnorm-norm.pro" -quiet -args ' + idl
-    os.system(cmd)
-    return
-
 def yesnocheck(yn):
+    """Check weither or not user yes/no input is in the right format and if
+    it's not, ask for new input"""
     if yn =='y':
         return yn
     elif yn=='n':
