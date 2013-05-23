@@ -8,6 +8,6 @@ setup(name='chiron-spec-tools',
       author='Brandon Bell',
       author_email='bmbellat@gmail.com',
       url='git://github.com/MrFunPy/chiron-spec-tools.git',
-      py_modules=['InteractiveNorm'],
-      scripts=['Median-CHIRON','Inspect-CHIRON','Normalize-CHIRON']
+      py_modules=['interactivenorm'],
+      scripts=['median-chiron','inspect-chiron','normalize-chiron']
       )

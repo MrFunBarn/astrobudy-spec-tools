@@ -1,0 +1,106 @@
+#! /usr/bin/python
+import sys
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pyfits # From the space telescope science institute.
+
+# Inspect CHIRON version 1
+# Inspect CHIRON is meant to allow easy viewing of CHIRON data reduced by thier
+# IDL piplin. The inpput is a fits file with the data in the form of
+# [order, data, wavlength(0)/Flux(1)]. The data is plotted and then you
+# can scroll through the differant orders using the mouse scroll wheel. You can
+# specify a srarting order after the filename if you wish.
+#
+# Call sequence ./Inspect-CHIRON filename order(optional)
+def on_scroll(event):
+    "detects skroll and redraws plot to new order"
+    global order
+    if event.button == 'down':
+        if order < 61: order = order + 1
+    elif event.button == 'up':
+        if order > 0: order = order - 1
+    plt.cla()
+    xmin = spec[order,0,0]
+    xmax = spec[order,800,0]
+    ymax = 1.1*(np.amax(spec[order,:,1]))
+    ymin = 0
+    plt.cla()
+    ax.set_ylim(0,ymax)
+    ax.set_xlim(xmin, xmax)
+    plt.title(filename)
+    plt.xlabel(r'Wavelength ($\AA$)')
+    plt.ylabel('Flux')
+    ax.text(.5,0.1,order,
+            horizontalalignment='center',transform=ax.transAxes)
+    ax.plot(spec[order,:,0],spec[order,:,1])
+    plt.draw()
+    return order
+
+def on_key(event):
+    global order
+    if event.key == 'up':
+        if order < 61: order = order + 1
+    elif event.key == 'right':
+        if order < 61: order = order + 1
+    elif event.key == 'down':
+        if order > 0: order = order - 1
+    elif event.key == 'left':
+        if order > 0: order = order - 1
+    plt.cla()
+    xmin = spec[order,0,0]
+    xmax = spec[order,800,0]
+    ymax = 1.1*(np.amax(spec[order,:,1]))
+    ymin = 0
+    plt.cla()
+    ax.set_ylim(0,ymax)
+    ax.set_xlim(xmin, xmax)
+    plt.title(filename)
+    plt.xlabel(r'Wavelength ($\AA$)')
+    plt.ylabel('Flux')
+    ax.text(.5,0.1,order,
+            horizontalalignment='center',transform=ax.transAxes)
+    ax.plot(spec[order,:,0],spec[order,:,1])
+    plt.draw()
+    return order
+
+filename = sys.argv[1]
+
+# Check for optional strating order argument.
+if len(sys.argv) > 2:
+    order = int(sys.argv[2])
+else:
+    order = 0
+
+# Read in spectra fits file.
+spec, header = pyfits.getdata(filename, 0, header=True)
+objectn = header['object']
+objectn = objectn.split('-')[0] # In case of combined name and date.
+objectd = header['UTSHUT']
+objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
+
+print('Viewing Data For '+objectn+' observed on UT '+objectd)
+print('You can skroll trough the orders uding the mouse wheel')
+
+# Generate the first plot and set up skroll detection.
+fig = plt.figure()
+cid = fig.canvas.mpl_connect('scroll_event', on_scroll) # detects skroll
+cid2 = fig.canvas.mpl_connect('key_press_event', on_key)
+ax = fig.add_subplot(1,1,1)
+xmin = spec[order,0,0]
+xmax = spec[order,800,0]
+ymax = 1.1*(np.amax(spec[order,:,1]))
+ymin = 0
+ax.set_ylim(0,ymax)
+ax.set_xlim(xmin, xmax)
+plt.title(filename)
+plt.xlabel(r'Wavelength ($\AA$)')
+plt.ylabel('Flux')
+ax.text(.5,.1,order,
+        horizontalalignment='center',transform=ax.transAxes)
+ax.plot(spec[order,:,0],spec[order,:,1], label=objectd)
+plt.show()
+
+
