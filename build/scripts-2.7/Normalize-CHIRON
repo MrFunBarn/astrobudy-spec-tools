@@ -9,10 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-import pyfits # From the space telescope science institute.
+import pyfits
 
 import InteractiveNorm
-# Normalize-CHIRON version 2.0.3 -Beta
+
+# Normalize-CHIRON version 2.0.3
 # Written by Brandon Bell April 2013
 #
 # Normalization-CHIRON calls an IDL routine to interactivly normalize each
@@ -27,65 +28,35 @@ filename = sys.argv[1]
 if len(sys.argv) == 3:
     renormfile = sys.argv[2]
     renorm = True
-print('Normalize-CHIRON Version 2.0.3 -Beta\n')
-print("""    Normalize-CHIRON will normalize the orders you want, and then make tarballs
-containing two columb text files of the normalized data and fit function at
-each order, plots of the fit function at each order, and finally a whole
-spectrum plot and fits file containing the new data. Final output should
-produce only 5 files.\n""")
-if renorm == True:
-    print('  -> Enter the orders to re-normalize' \
-          ' separated by commas and hit enter.')
-else:
-    print('  -> Enter the orders to normalize' \
-          ' separated by commas and hit enter.')
-print('  -> To normalize all orders just hit enter.')
-print("  -> Order #'s begin at 0 not 1.")
-print("  -> Order #'s don't need to be in order, and spaces are ok.")
-print('  -> No trailing commas please.\n')
-
-# Get the list of orders to normalize or set up to do all the orders.
-try:
-    inp = input("Orders: ")
-    try:
-        inpl=list(inp)
-    except:
-        inps=str(inp)
-    if len(str(inp)) <= 2:
-        inps = inps.split(',')[0]
-        orders = int(inps)
-        orders = [orders]
-    else:
-        o = [int(x) for x in inpl]
-        orders = o
-except:
-    orders = range(62)
+orders = range(62)
 
 # Read in the fits file(s) and retirve header info for latter use.
-spec, header = pyfits.getdata(filename, 0, header=True)
+spectra, header = pyfits.getdata(filename, 0, header=True)
 if renorm == True:
     respec, reheader = pyfits.getdata(renormfile, 0, header=True)
 objectn = header['object']
 objectn = objectn.split('-')[0] #in case of combined name and date.
 objectd = header['UTSHUT']
 objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
-root = filename.split('/')[0]
 
 # Variables for the whole spec plot tick labeling.
 majorLocator   = MultipleLocator(100)
 minorLocator   = MultipleLocator(25)
 
-# Define the new array to be filled with the normalized values.
-normspec = np.copy(spec)
-
-def norm(idl):
-    "norm calls idl on the array of flux values to interactivly normalize it."
-    # Run the IDL routine to normalize the function.
-    cmd = 'idl "specnorm-norm.pro" -quiet -args ' + idl
-    os.system(cmd)
-    return
+# start normalizing the spectra with interactive norm and if your renormalizing
+# the data, load the previously pickled data start from there.
+spect = InteractiveNorm.SpecNormalize(spectra, header)
+try:
+    spect.read_pickle()
+except:
+    pass
+spect.start_norm()
+spect.write_pickle()
+spec = spectra
 
 def yesnocheck(yn):
+    """Check weither or not user yes/no input is in the right format and if
+    it's not, ask for new input"""
     if yn =='y':
         return yn
     elif yn=='n':
@@ -109,55 +80,28 @@ def smooth3(x):
 
 for order in orders:
     ro = str(int(order))
-    # Make array to pass to IDL for normalization.
-    idlspec = np.zeros( (801,2) )
-    idlspec[:,0] = normspec[order,:,0]
-    idlspec[:,1] = normspec[order,:,1]
-
     # Create nessesary file names for data transfer file and the text file
     # that will hold normalized dat for saving and write the IDL transfer file.
-    normspecname = objectn+'-'+objectd+'-'+'Order'+ro+'-Normalized-Data.dat'
-    fitfilename = objectn+'-'+objectd+'-'+'Order'+ro+'-Fit-Function.dat'
-    idlpassfile = objectn+'-'+objectd+'-'+ro+'.dat'
-    normfilename = "norm-"+idlpassfile
-    np.savetxt(idlpassfile, idlspec)
-
-    norm(idlpassfile)
-
-    # Read in the fit function .dat file from IDL. The filename is defined
-    # in the IDL procedure specnorm-norm.pro written by Brandon.
-    try:     # If IDL fails to wrote the file try again.
-        fit = np.genfromtxt(normfilename)
-    except:
-        norm(idlpassfile)
-
-    # Normalize the flux array at this order.
-    normspec[order,:,1] = normspec[order,:,1] / fit[:,1]
+    normspecname = str(objectn+'-'+objectd+'-'+'Order'+ro+
+                       '-Normalized-Data.dat')
+    fitfilename = str(objectn+'-'+objectd+'-'+'Order'+ro+'-Fit-Function.dat')
+    fit = spect.fit
+    normspec = spect.norm
+    fitpoints = spect.fitpoints
 
     # Make a line array for plotting on the normaliztion fit plots.
     redline = np.copy(normspec[order,:,:])
     redline[:,1] = 1
 
-    # Make two colum array of normalized flux to write into a text file, then
-    # write the normalized flux and the fit function to .dat files.
-    x = np.copy(idlspec)
-    x[:,1] = normspec[order,:,1]
-    np.savetxt(normspecname, x)
-               #header="# The normalzed data in the form (wavelength, flux)")
-    np.savetxt(fitfilename, fit)
-               #header='# The normalization fit function (wavelength, flux)')
-
-    # Remove the .dat files used to pass the data to and from IDL.
-    cmd = 'rm ' + idlpassfile
-    os.system(cmd)
-    cmd = 'rm ' + normfilename
-    os.system(cmd)
-
+    np.savetxt(normspecname, normspec[order,:,:])
+    np.savetxt(fitfilename, fit[order,:,:])
     # Make a plot of the fit and un-normalized data to check the fit at latter
     # times if something seems fishy in the data.
     xmin = normspec[order,0,0]
     xmax = normspec[order,800,0]
     ymax = np.amax(spec[order,:,1])
+    pp = np.where(fitpoints[order,:,0] == 0)
+    pr = int(np.amin(pp))
     fig=plt.figure(1)
     fig.suptitle(objectn+' '+objectd+' Order '+ro)
     plt.subplot(211)
@@ -165,6 +109,7 @@ for order in orders:
     plt.title('Data and Fit')
     plt.plot(spec[order,:,0],spec[order,:,1])
     plt.plot(fit[:,0],fit[:,1])
+    plt.plot(fitpoints[order,:pr,0], fitpoints[order,:pr,1], 'go')
     plt.ylim(0,(1.25*ymax))
     plt.xlim(xmin, xmax)
     plt.subplot(212)
@@ -173,31 +118,19 @@ for order in orders:
     plt.xlabel(r'Wavelength $(\AA)$')
     plt.plot(normspec[order,:,0],normspec[order,:,1])
     plt.plot(redline[:,0], redline[:,1])
+    plt.plot(fitpoints[order,:pr,0],np.ones(len(range(pr))), 'go')
     plt.ylim(0.5, 1.5)
     plt.xlim(xmin, xmax)
     pltfilename = objectn+'-'+objectd+'Reference-Data-Fit-'+'Order'+ro+'.png'
     plt.savefig(pltfilename, dpi=300)
     plt.clf()
-
-     # Replace the normalized data if your renormalizing.
-    if renorm == True:
-        respec[order,:,1] = np.copy(normspec[order,:,1])
-
-    # Clear terminal and print current order for sanities sake.
-    os.system('clear')
-    print('\n')
-    print('  Finished Order '+ro+'  :)\n')
-    try:
-        zc = int(orders.index(order) +1)
-        print('  Working on Order '+str(orders[zc])+' now.\n')
-    except IndexError:
-        print('All specified orders completed\n')
+    print('Saving Plot and data files for order '+str(order))
 
 # Check for normalized file, if found ask if you want to overwrite then,
 # write out the final nomalized data into a new fits file and add the
 # modifications made and time of modifications. Also write the header to a
 # text file for inclusion with the data text files.
-newfilename = root+'/'+objectn+'-'+objectd+'-Normalized.fits'
+newfilename = objectn+'-'+objectd+'-Normalized.fits'
 skip = False
 try:
     if renorm == True:
@@ -236,9 +169,9 @@ try:
             hdulist.close()
 
         # Define file and directory names for file operations.
-        fitplot = root+'/'+objectn+'-'+objectd+'Normaliztion-Fit-Plots'
-        datatxt = root+'/'+objectn+'-'+objectd+'Normalized-Data-Text-Files'
-        fitdata = root+'/'+objectn+'-'+objectd+'Fit-Function-Text-Files'
+        fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
+        datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
+        fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
 
         print('Moving Files')
         os.system('mv *Order*.png '+fitplot)
@@ -278,7 +211,7 @@ try:
                         fontsize=4, color='blue',
                         horizontalalignment='center',
                        va='center')
-        pltfilename = root+'/'+objectn+'-'+objectd+'-Whole-Spectra.png'
+        pltfilename = objectn+'-'+objectd+'-Whole-Spectra.png'
         plt.savefig(pltfilename, bbox_inches='tight', dpi=600)
         print('Finished Normalization, Have Fun!')
 
@@ -288,14 +221,14 @@ try:
         print('Type new filename addition without .fits')
         print('Example: '+objectn+'-'+objectd+'-Normalized-blablabla')
         newfilext = raw_input(objectn+'-'+objectd+'-Normalized-')
-        newfilename = root+'/'+objectn+'-'+objectd+'-Normalized-' \
+        newfilename = objectn+'-'+objectd+'-Normalized-' \
                     +newfilext+'.fits'
 
-        fitplot = root+'/'+objectn+'-'+objectd+ \
+        fitplot = objectn+'-'+objectd+ \
                   'Normaliztion-Fit-Plots-'+newfilext
-        datatxt = root+'/'+objectn+'-'+objectd+ \
+        datatxt = objectn+'-'+objectd+ \
                   'Normalized-Data-Text-Files-'+newfilext
-        fitdata = root+'/'+objectn+'-'+objectd+ \
+        fitdata = objectn+'-'+objectd+ \
                   'Fit-Function-Text-Files-'+newfilext
 
         print('Writing .fits File')
@@ -366,7 +299,7 @@ try:
                         fontsize=4, color='blue',
                         horizontalalignment='center',
                        va='center')
-        pltfilename = root+'/'+objectn+'-'+objectd+ \
+        pltfilename = objectn+'-'+objectd+ \
                       '-Whole-Spectra-'+newfilext+'.png'
         plt.savefig(pltfilename, bbox_inches='tight', dpi=600)
         print('Finished Normalization, Have Fun!')
@@ -389,12 +322,12 @@ except IOError:
 # referance images and remove all the .dat and .png files outside of archive.
 if skip == False:
     print('Building Directory Tree and Moving Files!')
-    fitplot = root+'/'+objectn+'-'+objectd+'Normaliztion-Fit-Plots'
+    fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
     os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
-    datatxt = root+'/'+objectn+'-'+objectd+'Normalized-Data-Text-Files'
+    datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
     os.system('mkdir '+datatxt+
               ' && mv *Normalized-Data.dat *Header.dat '+datatxt)
-    fitdata = root+'/'+objectn+'-'+objectd+'Fit-Function-Text-Files'
+    fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
     os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
 
 ct = raw_input('Create Tarballs (y/n)? ')
@@ -442,7 +375,7 @@ if skip == False:
                     fontsize=4, color='blue',
                     horizontalalignment='center',
                     va='center')
-    pltfilename = root+'/'+objectn+'-'+objectd+'-Whole-Spectra.png'
+    pltfilename = objectn+'-'+objectd+'-Whole-Spectra.png'
     plt.savefig(pltfilename, bbox_inches='tight', dpi=800)
 
     print('Finished Normalization, Have Fun!')

@@ -103,4 +103,4 @@ ax.text(.5,.1,order,
 ax.plot(spec[order,:,0],spec[order,:,1], label=objectd)
 plt.show()
 
-os.system('touch test.txt')
+
