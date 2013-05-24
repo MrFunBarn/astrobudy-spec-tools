@@ -238,6 +238,16 @@ if do_plot == 'y':
             plt.savefig(pltfilename, bbox_inches='tight', dpi=600)
             print('Finished Normalization, Have Fun!')
 
+            ct = raw_input('Create Tarballs (y/n)? ')
+            yesnocheck(ct)
+            if ct == 'y':
+                print('Creating Tarballs')
+                os.system('tar -czf '+fitplot+
+                          '.tgz '+fitplot)
+                os.system('tar -czf '+datatxt+
+                          '.tgz '+datatxt)
+                os.system('tar -czf '+fitdata+
+                          '.tgz '+fitdata)
             skip = True
         else:
             # Preform all the above operations with a new filename.
