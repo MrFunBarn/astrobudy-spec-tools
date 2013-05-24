@@ -94,35 +94,33 @@ class SpecNormalize():
                 self.fitpoints[self.order,self.pick,0] = \
                                  self.fitpoints[self.order,self.pick,0] - xstep
             self.spline_fit_and_plot()
-            mark_size = .1*np.amax(self.rawspec[self.order,:,1])
-            self.ax.scatter(self.fitpoints[self.order,self.pick,0],
-                            self.fitpoints[self.order,self.pick,1],s=mark_size,
-                            marker='+', color='black', zorder=3)
-            self.ax2.scatter(self.fitpoints[self.order,self.pick,0], 1,
-                             s=mark_size, marker='+', color='black', zorder=3)
+            self.ax.plot(self.fitpoints[self.order,self.pick,0],
+                         self.fitpoints[self.order,self.pick,1], 'ro')
+            self.ax2.plot(self.fitpoints[self.order,self.pick,0], 1, 'ro')
             self.fig1.canvas.draw()
             return
 
         # Clear the plot and the selected points.
         if event.key == 'C':
+            self.fitpoints[self.order,:,:] = 0
+            self.editting_fit = False
+            self.fitted[self.order] = False
             self.ax.cla()
             self.ax2.cla()
             self.base_draw()
             self.fig1.canvas.draw()
-            self.fitpoints[self.order,:,:] = 0
-            self.fitted[self.order] = False
-            self.smoothed = False
+
 
         # Safely disconect the canvas and close the figure or, if editting the
         # fit, leave editting mode and go back to browse/select mode.
         if event.key == 'Q':
             if self.editting_fit == False:
                 self.quit()
-            else:
-                self.editting_fit = False
-                self.base_draw()
-                self.spline_fit_and_plot()
-                self.fig1.canvas.draw()
+        if event.key ==  'q':
+            self.editting_fit = False
+            self.base_draw()
+            self.spline_fit_and_plot()
+            self.fig1.canvas.draw()
 
         # Fit a spline and redarw plots.
         if event.key == 'f' and self.editting_fit == False:
@@ -139,9 +137,8 @@ class SpecNormalize():
                           str(self.order)+' Editting Fit')
             self.fig1.canvas.draw()
 
-        # (Next) Advance to the next order. Caps in Next and Previous are to
-        # prevent unintended trigering.
-        if event.key == 'N':
+        # (Next) Advance to the next order.
+        if event.key in ['n','up','right']:
             if self.editting_fit == False:
                 if self.order < ((np.shape(self.rawspec)[0])-1):
                     self.order = self.order + 1
@@ -149,29 +146,33 @@ class SpecNormalize():
                     plt.draw()
 
         # (Previous) Go back an order.
-        if event.key == 'P':
+        if event.key in ['p','down','left']:
             if self.editting_fit == False:
                 if self.order >= 1:
                     self.order = self.order - 1
                     self.base_draw()
                     plt.draw()
-                    self.editting_fit = False
 
-        if event.key == 'W':
+        if event.key == 'w':
             self.write_pickle()
 
         if event.key == 'b':
             self.smooth3(self.rawspec)
+            if self.editting_fit ==True or self.fitted[self.order] == True:
+                self.spline_fit_and_plot()
             self.base_draw()
             self.fig1.canvas.draw()
 
         if event.key == 'B':
             self.smoothed = False
+            if self.editting_fit ==True or self.fitted[self.order] == True:
+                self.spline_fit_and_plot()
             self.base_draw()
             self.fig1.canvas.draw()
 
     def quit(self):
         """Cleanly quit the normalization processes."""
+        self.write_pickle()
         self.fig1.canvas.mpl_disconnect(self.cid)
         self.fig1.canvas.mpl_disconnect(self.cid2)
         plt.close()
@@ -185,7 +186,7 @@ class SpecNormalize():
         self.redline[:,1] = 1
         self.xmin = self.rawspec[self.order,0,0]
         self.xmax = self.rawspec[self.order,800,0]
-        if self.fitted[self.order] == True:
+        if self.fitted[self.order] == True and self.editting_fit == False:
             self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
                               str(self.order)+' Mode: Fitted/Browse')
         elif self.editting_fit == True:
@@ -214,18 +215,17 @@ class SpecNormalize():
         if np.max(self.fitpoints[self.order,:,0]) == 0: return
         pp = np.where(self.fitpoints[self.order,:,0] == 0)
         pr = int(np.amin(pp))
-        a = self.fitpoints[self.order,:,:]
-        fit = InterpolatedUnivariateSpline(a[:pr,0], a[:pr,1], k=3)
+        fit = InterpolatedUnivariateSpline(self.fitpoints[self.order,:pr,0],
+                                           self.fitpoints[self.order,:pr,1],
+                                           k=3)
         self.fit[self.order,:,1] = fit(self.rawspec[self.order,:,0])
-        self.base_draw()
         self.norm[self.order,:,1] = (self.rawspec[self.order,:,1] /
                                      self.fit[self.order,:,1])
+        self.base_draw()
         self.ax.plot(self.rawspec[self.order,:,0], self.fit[self.order,:,1],
                      color='green')
         self.ax.plot(self.fitpoints[self.order,:pr,0],
                         self.fitpoints[self.order,:pr,1],'o', color='green')
-        self.ax2.plot(self.norm[self.order,:,0],self.norm[self.order,:,1],
-                      color='blue')
         self.ax2.plot(self.fitpoints[self.order,:pr,0],
                          np.ones((len(self.fitpoints[self.order,:pr,1]))),
                          'o', color='green')
@@ -285,17 +285,15 @@ class SpecNormalize():
         # both plots. This also prevents resolution problms between points at
         # similar y values.
         pickx = np.abs(points[order,:pr,0]-x).argmin()
+        self.pick = pickx
         self.spline_fit_and_plot()
         mark_size = .1*np.amax(self.rawspec[self.order,:,1])
         self.ax.plot(self.rawspec[self.order,:,0], self.fit[self.order,:,1],
                      color='green')
-        self.ax.scatter(self.fitpoints[self.order,pickx,0],
-                        self.fitpoints[self.order,pickx,1], s=mark_size,
-                        marker='+', color='black', zorder=3)
-        self.ax2.scatter(self.fitpoints[self.order,pickx,0], 1,
-                         s=mark_size, marker='+', color='black' ,zorder=3)
+        self.ax.plot(self.fitpoints[self.order,self.pick,0],
+                     self.fitpoints[self.order,self.pick,1], 'ro')
+        self.ax2.plot(self.fitpoints[self.order,self.pick,0], 1, 'ro')
         self.fig1.canvas.draw()
-        self.pick = pickx
 
 
     def smooth3(self, x):
