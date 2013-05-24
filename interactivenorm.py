@@ -158,16 +158,16 @@ class SpecNormalize():
 
         if event.key == 'b':
             self.smooth3(self.rawspec)
+            self.base_draw()
             if self.editting_fit ==True or self.fitted[self.order] == True:
                 self.spline_fit_and_plot()
-            self.base_draw()
             self.fig1.canvas.draw()
 
         if event.key == 'B':
             self.smoothed = False
+            self.base_draw()
             if self.editting_fit ==True or self.fitted[self.order] == True:
                 self.spline_fit_and_plot()
-            self.base_draw()
             self.fig1.canvas.draw()
 
     def quit(self):
