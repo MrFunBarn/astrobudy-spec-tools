@@ -118,6 +118,7 @@ class SpecNormalize():
                 self.quit()
         if event.key ==  'q':
             self.editting_fit = False
+            self.write_pickle()
             self.base_draw()
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
@@ -307,10 +308,3 @@ class SpecNormalize():
               sm[o,i,1] = ( x[o,n,1] + x[o,n+1,1] + x[o,n+2,1] ) / 3
        self.sm = sm
        self.smoothed = True
-
-
-if __name__ == '__main__':
-    rawspec, header = pyfits.getdata('HRCar-2013-02-19-Median.fits', 0,
-                                      header=True)
-    x = SpecNormalize(rawspec, header)
-    x.start_norm()
