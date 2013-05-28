@@ -37,7 +37,7 @@ class SpecNormalize():
         plt.show()
 
 
-    def read_pickle(self) :
+    def read_pickle(self):
         self.norm = pickle.load( open(
                                 self.objectn+'-'+self.objectd+'-norm.p', 'rb'))
         self.fit = pickle.load( open(
