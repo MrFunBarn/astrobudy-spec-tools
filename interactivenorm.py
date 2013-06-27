@@ -5,6 +5,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.ma as ma
 import pyfits
 from scipy.interpolate import InterpolatedUnivariateSpline
 
@@ -13,15 +14,17 @@ class SpecNormalize():
     def __init__(self,rawspec,objectn='',objectd='',units=r'$\AA$',order=0):
         self.pick = 0
         self.order = order
-        self.rawspec = rawspec
+        self.rawspec = ma.masked_array(rawspec)
         self.objectn = objectn
         self.objectd = objectd
         self.units = units
         self.norm = copy.deepcopy(self.rawspec)
         self.fit = copy.deepcopy(self.rawspec)
-        self.sm = copy.deepcopy(self.rawspec)
+        self.trimmed_spec = copy.deepcopy(self.rawspec)
         self.num_orders = len(self.rawspec)
+        self.sm = [0] * self.num_orders
         self.fitpoints = [0] * self.num_orders
+        self.spec_trim_points = [0] * self.num_orders
         self.fig1 = plt.figure(1)
         self.ax = plt.subplot2grid((3,1), (0, 0), rowspan=2)
         self.ax2 = self.fig1.add_subplot(3,1,3)
@@ -30,8 +33,12 @@ class SpecNormalize():
         self.cid2 = self.fig1.canvas.mpl_connect('key_press_event',
                                                  self._key_press)
         fitted = [False] * self.num_orders
+        trimmed  = [False] * self.num_orders
+        w_smoothed = [False] * self.num_orders
         self.state = {'fitted': fitted, 'editting_fit': False,
-                      'smoothed': False, 'trimed': False}
+                'w_smoothed': w_smoothed, 'trimmed': trimmed,
+                'edditing_trim': False, 'trimming': False,
+                'smoothed': False}
 
 
     def start_norm(self):
@@ -44,11 +51,16 @@ class SpecNormalize():
                                 self.objectn+'-'+self.objectd+'-norm.p', 'rb'))
         self.fit = pickle.load( open(
                                self.objectn+'-'+self.objectd+'-fit.p', 'rb'))
-        self.state['fitted'] = pickle.load( open(
-                                  self.objectn+'-'+self.objectd+'-fitted.p',
+        self.state = pickle.load( open(
+                                  self.objectn+'-'+self.objectd+'-state.p',
                                   'rb'))
         self.fitpoints = pickle.load( open(self.objectn+'-'+
                                      self.objectd+'-fitpoints.p', 'rb'))
+        if True in self.state['trimmed']:
+            self.trimmed_spec = pickle.load( open(self.objectn+'-'+
+                                     self.objectd+'-trimmed-spec.p', 'rb'))
+            self.spec_trim_points = pickle.load( open(self.objectn+'-'+
+                                     self.objectd+'-spec-trim-points.p', 'rb'))
 
 
     def write_pickle(self):
@@ -57,11 +69,19 @@ class SpecNormalize():
                     'wb'))
         pickle.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit.p',
                     'wb'))
-        pickle.dump( self.state['fitted'],
-                    open(self.objectn+'-'+self.objectd+'-fitted.p', 'wb'))
+        pickle.dump( self.state,
+                    open(self.objectn+'-'+self.objectd+'-state.p', 'wb'))
         pickle.dump( self.fitpoints,
                     open(self.objectn+'-'+self.objectd+'-fitpoints.p',
                     'wb'))
+        # The second part of the conditions is to prevent a partial trim
+        # section from being saved wich could case problems.
+        if (True in self.state['trimmed'] and
+                                self.state['trimming'] == False):
+            pickle.dump(self.trimmed_spec, open(self.objectn+'-'+
+                                     self.objectd+'-trimmed-spec.p', 'wb'))
+            pickle.dump(self.spec_trim_points, open(self.objectn+'-'+
+                                     self.objectd+'-spec-trim-points.p', 'wb'))
 
 
 
@@ -69,10 +89,13 @@ class SpecNormalize():
         """Call functions to handle mouse clicks based on mode"""
         nav = self.ax.get_navigate_mode()
         if ( nav == None and self.state['editting_fit'] == False and
-             self.state['fitted'][self.order] == False ):
+             self.state['fitted'][self.order] == False and
+             self.state['trimming'] == False):
             self.find_points(event)
         elif nav == None and self.state['editting_fit'] == True:
             self.edit_fit_points(event)
+        elif nav == None and self.state['trimming'] == True:
+            self._trim_spec(event)
 
 
     def _key_press(self, event):
@@ -121,7 +144,8 @@ class SpecNormalize():
                     self.pick = 0
             elif event.key == 'D' and len(self.fitpoints[self.order][:,0]) <=4:
                 print("""Deletion of point would not leave enough points to
-calculate fit. Add at least one more point before deleting this one.""")
+                      calculate fit. Add at least one more point before
+                      deleting this one.""")
             elif event.key == 'A':
                 self.fitpoints[self.order] = \
                                          np.vstack((self.fitpoints[self.order],
@@ -141,19 +165,22 @@ calculate fit. Add at least one more point before deleting this one.""")
             return
 
         if event.key == 'T':
-            self.state['trimed'] == True
-            self._trim_spec
+            self.state['trimming'] = True
+            print('trimming')
 
         # Clear the plot and the selected points.
         if event.key == 'C':
             self.fitpoints[self.order] = 0
             self.state['editting_fit'] = False
             self.state['fitted'][self.order] = False
+            self.state['trimming'] = False
+            self.state['trimmed'][self.order] = False
+            self.spec_trim_points[self.order] = 0
+            self.rawspec[self.order].mask = ma.nomask
             self.ax.cla()
             self.ax2.cla()
             self.base_draw()
             self.fig1.canvas.draw()
-
 
         # Safely disconect the canvas and close the figure or, if editting the
         # fit, leave editting mode and go back to browse/select mode.
@@ -187,6 +214,8 @@ calculate fit. Add at least one more point before deleting this one.""")
             if self.state['editting_fit'] == False:
                 if self.order < (self.num_orders-1):
                     self.order = self.order + 1
+                    if self.state['w_smoothed'][self.order] == False:
+                        self.smooth3
                     self.base_draw()
                     plt.draw()
 
@@ -195,6 +224,8 @@ calculate fit. Add at least one more point before deleting this one.""")
             if self.state['editting_fit'] == False:
                 if self.order >= 1:
                     self.order = self.order - 1
+                    if self.state['w_smoothed'][self.order] == False:
+                        self.smooth3
                     self.base_draw()
                     plt.draw()
 
@@ -207,7 +238,7 @@ calculate fit. Add at least one more point before deleting this one.""")
         # data, just makes a smoothed version an plots it. The norm preview
         # plot always shows un-smoothed data.
         if event.key == 'b':
-            self.smooth3(self.rawspec)
+            self.smooth3(self.rawspec[self.order])
             self.state['smoothed'] = True
             self.base_draw()
             if (self.state['editting_fit'] == True or
@@ -217,7 +248,7 @@ calculate fit. Add at least one more point before deleting this one.""")
 
         # Un-Smooth the spectra. Just changes the state so that the un-smoothed
         # spectra is plotted again.
-        if event.key == 'B':
+        if event.key == 'B' and self.state['smoothed'] == True:
             self.state['smoothed'] = False
             self.base_draw()
             if (self.state['editting_fit'] == True or
@@ -247,7 +278,7 @@ calculate fit. Add at least one more point before deleting this one.""")
         self.ax2.plot(self.redline[:,0], self.redline[:,1], color='green')
         self.ax2.set_ylim(0.5, 1.5)
         self.ax2.set_xlim(self.xmin, self.xmax)
-        if self.state['smoothed'] ==True:
+        if (self.state['smoothed'] == True ):
             self.ax.plot(self.sm[self.order][:,0],
                          self.sm[self.order][:,1])
         else:
@@ -314,9 +345,6 @@ calculate fit. Add at least one more point before deleting this one.""")
             self.fitpoints[self.order] = np.vstack((self.fitpoints[self.order],
                                                   [event.xdata, event.ydata]))
             self.fitpoints[self.order].view('f8,f8').sort(0,order=['f0'])
-        print(len(self.fitpoints))
-        print(self.order)
-        print(self.fitpoints[self.order])
         self.base_draw()
         self.ax.plot(self.fitpoints[self.order][:,0],
                      self.fitpoints[self.order][:,1],'o', color='red')
@@ -335,9 +363,6 @@ calculate fit. Add at least one more point before deleting this one.""")
             fitrange = self.rawspec[self.order][:fr,0]
             pfit = fit(fitrange)
             pfitn = self.rawspec[self.order][:fr,1] / pfit
-            print(np.shape(pfit))
-            print(np.shape(pfitn))
-            print(np.shape(self.rawspec[self.order][:fr,0]))
             self.ax2.plot(self.rawspec[self.order][:fr,0],
                           pfitn, color='red')
             self.ax.plot(self.rawspec[self.order][:fr,0],
@@ -365,17 +390,66 @@ calculate fit. Add at least one more point before deleting this one.""")
         self.fig1.canvas.draw()
 
 
-    def _trim_spec(self):
-        pass
-
+    def _trim_spec(self, event):
+        x = event.xdata
+        trimline = np.abs(self.rawspec[self.order][:,0]-x).argmin()
+        if type(self.spec_trim_points[self.order]) == int:
+            self.spec_trim_points[self.order] = np.array(
+                                [[self.rawspec[self.order][trimline,0]]])
+            self.base_draw
+            self.ax.axvline(self.spec_trim_points[self.order][0,0],color='red')
+            self.fig1.canvas.draw()
+        elif np.shape(self.spec_trim_points[self.order])[0] == 1:
+            self.spec_trim_points[self.order]= \
+                      np.append(self.spec_trim_points[self.order],
+                      [[self.rawspec[self.order][trimline,0]]], axis=1)
+            self.base_draw
+            self.ax.axvline(self.spec_trim_points[self.order][0,0],color='red')
+            self.ax.axvline(self.spec_trim_points[self.order][0,1],color='red')
+            self.ax.axvspan(self.spec_trim_points[self.order][0,0],
+                            self.spec_trim_points[self.order][0,1],
+                            color='black',alpha=0.5)
+            self.fig1.canvas.draw()
+            start = int(np.where(self.spec_trim_points[self.order][0,0] ==
+                                self.rawspec[self.order][:,0])[0])
+            start = self.rawspec[self.order][start,0]
+            end = int(np.where(self.spec_trim_points[self.order][0,1] ==
+                                self.rawspec[self.order][:,0])[0])
+            end = self.rawspec[self.order][end,0]
+            del_splice = np.array([start,end])
+            self.rawspec[self.order] = ma.masked_inside(
+                                            self.rawspec[self.order],start,end)
+            self.fit[self.order] = ma.masked_inside(
+                                                self.fit[self.order],start,end)
+            self.norm[self.order] = ma.masked_inside(
+                                               self.norm[self.order],start,end)
+            print('Just Trimmed')
+            self.state['trimming'] = False
+            self.state['trimmed'][self.order] = True
+        if self.state['trimmed'][self.order] == True:
+            pass
 
     def smooth3(self, x):
-       sm = copy.deepcopy(self.rawspec)
-       nelm = np.shape(x[self.order])[0]
-       sm = np.zeros( (self.num_orders,int(math.floor(nelm/3)),2) )
-       for o in range(self.num_orders):
-           for i in range(int(math.floor(nelm/3))):
-              n=3*i
-              sm[o][i,0] = ( x[o][n,0] + x[o][n+1,0] + x[o][n+2,0] ) / 3
-              sm[o][i,1] = ( x[o][n,1] + x[o][n+1,1] + x[o][n+2,1] ) / 3
-       self.sm = sm
+        print('called')
+        x = ma.compress_rows(x)
+        nelm = np.shape(x)[0]
+        self.sm[self.order] = np.zeros( (int(math.floor(nelm/3)),2) )
+        sm = self.sm
+        o = self.order
+        for i in range(int(math.floor(nelm/3))):
+          n=3*i
+          sm[o][i,0] = ma.mean( x[n,0] + x[n+1,0] + x[n+2,0] )
+          sm[o][i,1] = ma.mean( x[n,1] + x[n+1,1] + x[n+2,1] )
+        self.sm = sm
+        self.state['w_smoothed'][self.order] = True
+        start = int(np.where(self.spec_trim_points[self.order][0,0] <=
+                            self.rawspec[self.order][:,0])[0].argmin())
+        start = self.rawspec[self.order][start,0]
+        end = int(np.where(self.spec_trim_points[self.order][0,1] >=
+                            self.rawspec[self.order][:,0])[0])
+        end = self.rawspec[self.order][end,0]
+        del_splice = np.array([start,end])
+        print(del_splice)
+        self.sm[self.order] = ma.masked_inside(
+                                        self.sm[self.order],start,end)
+        return

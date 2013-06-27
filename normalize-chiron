@@ -31,7 +31,7 @@ if len(sys.argv) == 3:
 orders = range(62)
 
 # Read in the fits file(s) and retirve header info for latter use.
-spectra, header = pyfits.getdata(filename, 0, header=True)
+spec, header = pyfits.getdata(filename, 0, header=True)
 if renorm == True:
     respec, reheader = pyfits.getdata(renormfile, 0, header=True)
 objectn = header['object']
@@ -51,9 +51,15 @@ if pwd.split('/')[-1] != objectn+'-'+objectd:
 majorLocator   = MultipleLocator(100)
 minorLocator   = MultipleLocator(25)
 
+# Re-format the spectra array into a list of arrays for interactive norm to
+# proccess. This is done so that interactive norm can handle spectra with
+# differnt sized orders.
+spectra = []
+for band in range(np.shape(spec)[0]):
+    spectra.append(np.array(spec[band,:,:]))
 # start normalizing the spectra with interactive norm and if your renormalizing
 # the data, load the previously pickled data start from there.
-spect = interactivenorm.SpecNormalize(spectra, header)
+spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
 try:
     spect.read_pickle()
 except:
