@@ -391,6 +391,7 @@ class SpecNormalize():
 
 
     def _trim_spec(self, event):
+        """Trim out the section of data between a set of x values."""
         x = event.xdata
         trimline = np.abs(self.rawspec[self.order][:,0]-x).argmin()
         if type(self.spec_trim_points[self.order]) == int:
@@ -399,7 +400,8 @@ class SpecNormalize():
             self.base_draw
             self.ax.axvline(self.spec_trim_points[self.order][0,0],color='red')
             self.fig1.canvas.draw()
-        elif np.shape(self.spec_trim_points[self.order])[0] == 1:
+        elif (np.shape(self.spec_trim_points[self.order])[0] == 1
+              and self.state['trimmed'][self.order] != True):
             self.spec_trim_points[self.order]= \
                       np.append(self.spec_trim_points[self.order],
                       [[self.rawspec[self.order][trimline,0]]], axis=1)
@@ -423,33 +425,77 @@ class SpecNormalize():
                                                 self.fit[self.order],start,end)
             self.norm[self.order] = ma.masked_inside(
                                                self.norm[self.order],start,end)
-            print('Just Trimmed')
+            self.sm[self.order] = ma.masked_inside(
+                                               self.sm[self.order],start,end)
+            print('Trimmed')
             self.state['trimming'] = False
             self.state['trimmed'][self.order] = True
-        if self.state['trimmed'][self.order] == True:
-            pass
+
+        elif (self.state['trimmed'][self.order] == True and
+            self.spec_trim_points[self.order][-1,1] != 0):
+            new = np.array([self.rawspec[self.order][trimline,0],0])
+            self.spec_trim_points[self.order] = np.vstack(
+                                        (self.spec_trim_points[self.order],
+                                        new))
+            self.base_draw
+            self.ax.axvline(self.spec_trim_points[self.order][-1,0],
+                            color='red')
+            self.fig1.canvas.draw()
+        elif self.spec_trim_points[self.order][-1,1] == 0:
+            self.spec_trim_points[self.order][-1,1] = \
+                                           self.rawspec[self.order][trimline,0]
+            self.base_draw
+            self.ax.axvline(self.spec_trim_points[self.order][-1,0],
+                            color='red')
+            self.ax.axvline(self.spec_trim_points[self.order][-1,1],
+                            color='red')
+            self.ax.axvspan(self.spec_trim_points[self.order][-1,0],
+                            self.spec_trim_points[self.order][-1,1],
+                            color='black',alpha=0.5)
+            self.fig1.canvas.draw()
+            start = int(np.where(self.spec_trim_points[self.order][-1,0] ==
+                                self.rawspec[self.order][:,0])[0])
+            start = self.rawspec[self.order][start,0]
+            end = int(np.where(self.spec_trim_points[self.order][-1,1] ==
+                                self.rawspec[self.order][:,0])[0])
+            end = self.rawspec[self.order][end,0]
+            del_splice = np.array([start,end])
+            self.rawspec[self.order] = ma.masked_inside(
+                                            self.rawspec[self.order],start,end)
+            self.fit[self.order] = ma.masked_inside(
+                                                self.fit[self.order],start,end)
+            self.norm[self.order] = ma.masked_inside(
+                                               self.norm[self.order],start,end)
+            self.sm[self.order] = ma.masked_inside(
+                                               self.sm[self.order],start,end)
+            print('Trimmed')
+            self.state['trimming'] = False
+
 
     def smooth3(self, x):
-        print('called')
         x = ma.compress_rows(x)
         nelm = np.shape(x)[0]
         self.sm[self.order] = np.zeros( (int(math.floor(nelm/3)),2) )
-        sm = self.sm
-        o = self.order
+        sm = self.sm[self.order]
         for i in range(int(math.floor(nelm/3))):
           n=3*i
-          sm[o][i,0] = ma.mean( x[n,0] + x[n+1,0] + x[n+2,0] )
-          sm[o][i,1] = ma.mean( x[n,1] + x[n+1,1] + x[n+2,1] )
-        self.sm = sm
+          sm[i,0] = ( x[n,0] + x[n+1,0] + x[n+2,0] ) / 3
+          sm[i,1] = ( x[n,1] + x[n+1,1] + x[n+2,1] ) / 3
+        self.sm[self.order] = sm
         self.state['w_smoothed'][self.order] = True
-        start = int(np.where(self.spec_trim_points[self.order][0,0] <=
-                            self.rawspec[self.order][:,0])[0].argmin())
-        start = self.rawspec[self.order][start,0]
-        end = int(np.where(self.spec_trim_points[self.order][0,1] >=
-                            self.rawspec[self.order][:,0])[0])
-        end = self.rawspec[self.order][end,0]
-        del_splice = np.array([start,end])
-        print(del_splice)
-        self.sm[self.order] = ma.masked_inside(
-                                        self.sm[self.order],start,end)
+        if self.state['trimmed'][self.order] == True:
+            masked = np.empty(np.shape(self.sm[self.order]))
+            for r in range(np.shape(self.spec_trim_points[self.order])[0]):
+                start = self.spec_trim_points[self.order][r,0]
+                end = self.spec_trim_points[self.order][r,1]
+                mask = np.empty(np.shape(self.sm[self.order]))
+                mask[:,0] = np.logical_and(self.sm[self.order][:,0] >= start,
+                                           self.sm[self.order][:,0] <= end)
+                mask[:,1] = np.logical_and(self.sm[self.order][:,0] >= start,
+                                           self.sm[self.order][:,0] <= end)
+                maskednew = np.where(mask[:,0] == True)[0]
+                print(maskednew)
+                masked[maskednew] = False
+            self.sm[self.order] = ma.masked_array(self.sm[self.order],
+                                                      mask=masked)
         return
