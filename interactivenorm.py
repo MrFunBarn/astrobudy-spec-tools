@@ -2,6 +2,7 @@
 import math
 import pickle
 import copy
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +39,8 @@ class SpecNormalize():
         self.state = {'fitted': fitted, 'editting_fit': False,
                 'w_smoothed': w_smoothed, 'trimmed': trimmed,
                 'edditing_trim': False, 'trimming': False,
-                'smoothed': False}
+                'smoothed': False,
+                'del_trim': False}
 
 
     def start_norm(self):
@@ -47,9 +49,9 @@ class SpecNormalize():
 
 
     def read_pickle(self):
-        self.norm = pickle.load( open(
+        self.norm = ma.load( open(
                                 self.objectn+'-'+self.objectd+'-norm.p', 'rb'))
-        self.fit = pickle.load( open(
+        self.fit = ma.load( open(
                                self.objectn+'-'+self.objectd+'-fit.p', 'rb'))
         self.state = pickle.load( open(
                                   self.objectn+'-'+self.objectd+'-state.p',
@@ -57,7 +59,7 @@ class SpecNormalize():
         self.fitpoints = pickle.load( open(self.objectn+'-'+
                                      self.objectd+'-fitpoints.p', 'rb'))
         if True in self.state['trimmed']:
-            self.trimmed_spec = pickle.load( open(self.objectn+'-'+
+            self.rawspec = ma.load( open(self.objectn+'-'+
                                      self.objectd+'-trimmed-spec.p', 'rb'))
             self.spec_trim_points = pickle.load( open(self.objectn+'-'+
                                      self.objectd+'-spec-trim-points.p', 'rb'))
@@ -65,9 +67,11 @@ class SpecNormalize():
 
     def write_pickle(self):
         print('pickling')
-        pickle.dump( self.norm, open(self.objectn+'-'+self.objectd+'-norm.p',
+        self.state['trimming'] = False
+        self.state['editting_fit'] = False
+        ma.dump( self.norm, open(self.objectn+'-'+self.objectd+'-norm.p',
                     'wb'))
-        pickle.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit.p',
+        ma.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit.p',
                     'wb'))
         pickle.dump( self.state,
                     open(self.objectn+'-'+self.objectd+'-state.p', 'wb'))
@@ -78,7 +82,7 @@ class SpecNormalize():
         # section from being saved wich could case problems.
         if (True in self.state['trimmed'] and
                                 self.state['trimming'] == False):
-            pickle.dump(self.trimmed_spec, open(self.objectn+'-'+
+            ma.dump(self.rawspec, open(self.objectn+'-'+
                                      self.objectd+'-trimmed-spec.p', 'wb'))
             pickle.dump(self.spec_trim_points, open(self.objectn+'-'+
                                      self.objectd+'-spec-trim-points.p', 'wb'))
@@ -92,10 +96,18 @@ class SpecNormalize():
              self.state['fitted'][self.order] == False and
              self.state['trimming'] == False):
             self.find_points(event)
-        elif nav == None and self.state['editting_fit'] == True:
+        elif (nav == None and self.state['editting_fit'] == True and
+                self.state['del_trim'] == False):
             self.edit_fit_points(event)
+        elif (nav == None and self.state['editting_fit'] == True and
+                self.state['del_trim'] == True):
+                self.delete_trim_reg(event)
         elif nav == None and self.state['trimming'] == True:
             self._trim_spec(event)
+            if (self.state['trimmed'][self.order] == True and
+                    self.state['trimming'] == False):
+                self.base_draw()
+                self.fig1.canvas.draw()
 
 
     def _key_press(self, event):
@@ -164,9 +176,18 @@ class SpecNormalize():
             self.fig1.canvas.draw()
             return
 
+        # Define a section of data to trim.
         if event.key == 'T':
-            self.state['trimming'] = True
-            print('trimming')
+            if self.state['editting_fit'] == False:
+                self.state['trimming'] = True
+                print("Select trim Region by picking the blue side first and "
+                      "then the red side of the region.")
+                self.base_draw()
+                self.fig1.canvas.draw()
+            elif self.state['editting_fit'] == True:
+                self.state['del_trim'] = True
+                self.base_draw()
+                self.fig1.canvas.draw()
 
         # Clear the plot and the selected points.
         if event.key == 'C':
@@ -278,9 +299,22 @@ class SpecNormalize():
         self.ax2.plot(self.redline[:,0], self.redline[:,1], color='green')
         self.ax2.set_ylim(0.5, 1.5)
         self.ax2.set_xlim(self.xmin, self.xmax)
-        if (self.state['smoothed'] == True ):
+        if self.state['smoothed'] == True:
             self.ax.plot(self.sm[self.order][:,0],
                          self.sm[self.order][:,1])
+        elif ((self.state['trimming'] == True or
+              self.state['editting_fit'] == True) and
+              self.state['trimmed'][self.order] == True):
+            self.ax.plot(self.rawspec.data[self.order][:,0],
+                         self.rawspec.data[self.order][:,1])
+            for r in range(np.shape(self.spec_trim_points[self.order])[0]):
+                self.ax.axvline(self.spec_trim_points[self.order][r,0],
+                                color='red')
+                self.ax.axvline(self.spec_trim_points[self.order][r,1],
+                                color='red')
+                self.ax.axvspan(self.spec_trim_points[self.order][r,0],
+                        self.spec_trim_points[self.order][r,1],
+                                color='black',alpha=0.5)
         else:
             self.ax.plot(self.rawspec[self.order][:,0],
                          self.rawspec[self.order][:,1])
@@ -305,6 +339,10 @@ class SpecNormalize():
                               str(self.order)+' Mode: Editting Fit Points')
             self.ax2.plot(self.norm[self.order][:,0],
                                   self.norm[self.order][:,1], color='blue')
+            if self.state['del_trim'] == True:
+                self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
+                              str(self.order)+' Mode: Editting Fit Points'
+                                              '-> Del-Trim')
         else:
             self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
                               str(self.order)+' Mode: Pick Points/Browse')
@@ -314,6 +352,9 @@ class SpecNormalize():
                                 color='green')
                 self.ax.plot(self.fitpoints[self.order][:,0],
                              self.fitpoints[self.order][:,1],'o', color='red')
+        if self.state['trimming'] == True:
+            self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
+                              str(self.order)+' Mode: Trimming')
 
 
     def spline_fit_and_plot(self):
@@ -390,17 +431,61 @@ class SpecNormalize():
         self.fig1.canvas.draw()
 
 
+    def delete_trim_reg(self, event):
+        """Delete the whole trim region nearest the click."""
+        x = event.xdata
+        pick = np.abs(self.spec_trim_points[self.order]-x).argmin()
+        points = self.spec_trim_points[self.order]
+        row = (pick-(pick%2))/2
+        print('Deleting trim range '+str(
+            self.spec_trim_points[self.order][row,0])+' to '+ str(
+            self.spec_trim_points[self.order][row,1]))
+        self.spec_trim_points[self.order] = \
+                np.delete(self.spec_trim_points[self.order],row,axis=0)
+        print(self.spec_trim_points[self.order])
+
+        self.rawspec[self.order] = ma.masked_array(self.rawspec[self.order].data, mask=False)
+        self.norm[self.order] = ma.masked_array(self.norm[self.order].data, mask=False)
+        self.fit[self.order] = ma.masked_array(self.fit[self.order].data, mask=False)
+        if np.shape(self.spec_trim_points[self.order])[0] == 0:
+            self.spec_trim_points[self.order] = 0
+        else:
+            for i in range((np.shape(points)[0]) -1 ):
+                start = self.spec_trim_points[self.order][i,0]
+                end = self.spec_trim_points[self.order][i,1]
+                self.rawspec[self.order] = ma.masked_inside(
+                                            self.rawspec[self.order],start,end)
+                self.fit[self.order] = ma.masked_inside(
+                                                self.fit[self.order],start,end)
+                self.norm[self.order] = ma.masked_inside(
+                                               self.norm[self.order],start,end)
+                self.sm[self.order] = ma.masked_inside(
+                                                 self.sm[self.order],start,end)
+        self.state['del_trim'] = False
+        self.base_draw()
+        self.spline_fit_and_plot()
+        self.fig1.canvas.draw()
+        return
+
+
+
     def _trim_spec(self, event):
         """Trim out the section of data between a set of x values."""
         x = event.xdata
         trimline = np.abs(self.rawspec[self.order][:,0]-x).argmin()
+        # This section handels the case where there is currently no trim
+        # sections defined for the data. This is detected because the list
+        # that holds an array of trim points for each order/band is initally
+        # set 0 at for a band/order. This Trimming algorithm is not especially
+        # robust if something unexpected happens between defining the first and
+        # second boundry of the region..
         if type(self.spec_trim_points[self.order]) == int:
             self.spec_trim_points[self.order] = np.array(
                                 [[self.rawspec[self.order][trimline,0]]])
             self.base_draw
             self.ax.axvline(self.spec_trim_points[self.order][0,0],color='red')
             self.fig1.canvas.draw()
-        elif (np.shape(self.spec_trim_points[self.order])[0] == 1
+        elif (np.shape(self.spec_trim_points[self.order])[1] == 1
               and self.state['trimmed'][self.order] != True):
             self.spec_trim_points[self.order]= \
                       np.append(self.spec_trim_points[self.order],
@@ -427,10 +512,18 @@ class SpecNormalize():
                                                self.norm[self.order],start,end)
             self.sm[self.order] = ma.masked_inside(
                                                self.sm[self.order],start,end)
-            print('Trimmed')
+
+            T = str(np.shape(self.spec_trim_points[self.order])[0])
+            print(T+' Sections Are Trimmed From Data. \n'
+                    'Trimming is now finished. To trim another section press'
+                    ' T again. \n')
             self.state['trimming'] = False
             self.state['trimmed'][self.order] = True
+            return
 
+        # This sections Handles the case where ther is allready atleast one
+        # trim section in the data. The new section is built and append to the
+        # list of regions.
         elif (self.state['trimmed'][self.order] == True and
             self.spec_trim_points[self.order][-1,1] != 0):
             new = np.array([self.rawspec[self.order][trimline,0],0])
@@ -459,7 +552,6 @@ class SpecNormalize():
             end = int(np.where(self.spec_trim_points[self.order][-1,1] ==
                                 self.rawspec[self.order][:,0])[0])
             end = self.rawspec[self.order][end,0]
-            del_splice = np.array([start,end])
             self.rawspec[self.order] = ma.masked_inside(
                                             self.rawspec[self.order],start,end)
             self.fit[self.order] = ma.masked_inside(
@@ -468,9 +560,12 @@ class SpecNormalize():
                                                self.norm[self.order],start,end)
             self.sm[self.order] = ma.masked_inside(
                                                self.sm[self.order],start,end)
-            print('Trimmed')
+            T = str(np.shape(self.spec_trim_points[self.order])[0])
+            print(T+' Sections Are Trimmed From Data. \n'
+                    'Trimming is now finished. To trim another section press'
+                    ' T again. \n')
             self.state['trimming'] = False
-
+            return
 
     def smooth3(self, x):
         x = ma.compress_rows(x)
@@ -485,6 +580,7 @@ class SpecNormalize():
         self.state['w_smoothed'][self.order] = True
         if self.state['trimmed'][self.order] == True:
             masked = np.empty(np.shape(self.sm[self.order]))
+            masked.fill(False)
             for r in range(np.shape(self.spec_trim_points[self.order])[0]):
                 start = self.spec_trim_points[self.order][r,0]
                 end = self.spec_trim_points[self.order][r,1]
@@ -493,9 +589,10 @@ class SpecNormalize():
                                            self.sm[self.order][:,0] <= end)
                 mask[:,1] = np.logical_and(self.sm[self.order][:,0] >= start,
                                            self.sm[self.order][:,0] <= end)
-                maskednew = np.where(mask[:,0] == True)[0]
-                print(maskednew)
-                masked[maskednew] = False
+                maskednew1 = np.where(mask[:,0] == True)
+                maskednew2 = np.where(mask[:,1] == True)
+                masked[maskednew1,0] = True
+                masked[maskednew2,1] = True
             self.sm[self.order] = ma.masked_array(self.sm[self.order],
                                                       mask=masked)
         return
