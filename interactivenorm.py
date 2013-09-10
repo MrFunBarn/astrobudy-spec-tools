@@ -440,15 +440,22 @@ class SpecNormalize():
         print('Deleting trim range '+str(
             self.spec_trim_points[self.order][row,0])+' to '+ str(
             self.spec_trim_points[self.order][row,1]))
-        self.spec_trim_points[self.order] = \
-                np.delete(self.spec_trim_points[self.order],row,axis=0)
-        print(self.spec_trim_points[self.order])
+        if np.shape(self.spec_trim_points[self.order])[0] >= 1:
+            self.spec_trim_points[self.order] = \
+                    np.delete(self.spec_trim_points[self.order],row,axis=0)
+            print(self.spec_trim_points[self.order])
 
-        self.rawspec[self.order] = ma.masked_array(self.rawspec[self.order].data, mask=False)
-        self.norm[self.order] = ma.masked_array(self.norm[self.order].data, mask=False)
-        self.fit[self.order] = ma.masked_array(self.fit[self.order].data, mask=False)
+            self.rawspec[self.order] = ma.masked_array(
+                                         self.rawspec[self.order].data, mask=False)
+            self.norm[self.order] = ma.masked_array(
+                                            self.norm[self.order].data, mask=False)
+            self.fit[self.order] = ma.masked_array(
+                                             self.fit[self.order].data, mask=False)
+        else:
+            self.spec_trim_points[self.order] = 0
         if np.shape(self.spec_trim_points[self.order])[0] == 0:
             self.spec_trim_points[self.order] = 0
+            self.state['trimmed'][self.order] = False
         else:
             for i in range((np.shape(points)[0]) -1 ):
                 start = self.spec_trim_points[self.order][i,0]
