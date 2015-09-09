@@ -28,7 +28,7 @@ import pyfits
 # as a list of 2D arrays (wavelength,flux) with each order/band as a seprate
 # list element. 
 # 
-# The once normalized, you can save images that mimich the user interface for
+# Once normalized, you can save images that mimich the user interface for
 # each and every order fitted, and text exports of both the normalized spectra
 # and the the fit function for possible future use/evaluation. The porgram aloso
 # creates pickles of current state when closed with Q, finished editing
@@ -735,8 +735,3 @@ class SpecNormalize():
                                   '-Fit-Function.dat')
                 np.savetxt(normspecname, self.norm[order][:,:])
                 np.savetxt(fitfilename, self.fit[order][:,:])
-        #if header != False:
-         #   headerfile = self.objectn+'-'+self.objectd+'-'+'Original-Data-Header.dat'
-         #   f = open(headerfile, 'w')
-         #   f.write(str(header))
-         #   f.close()
