@@ -1,0 +1,13 @@
+normalize-chiron:
+
+normalize-chiron allows for easy interactive fitting of multip-band/order
+spectra. normalize-chiron can output the normalized data as both a fits file and
+a text files. It also makes plots of the orginal data with the fit and the final
+normalized data for each order/band that is fit.
+
+Basc Operation:
+normalize-chiron is a modal program with modes of operation for
+navigation/fitting of data, editting a previously produced fit, and for
+editing/defineing a section of bad data to trim.
+
+

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python3
 import numpy as np
 import pyfits
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ if len(sys.argv) >= 3:
     exps = []
     for exp in sys.argv: exps.append(exp)
 else:
-    print('Not Enough Exposures, check that each exposure name is separated by \
+    print('Not Enough Exposure, check that each exposure name is separated by \
           a space.')
 
 # Define the input files and read in each spectra and it's header with pyfits.
