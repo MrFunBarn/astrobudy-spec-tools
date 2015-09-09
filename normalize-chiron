@@ -72,11 +72,11 @@ def yesnocheck(yn):
         return yn
     else:
         print('Please enter yes (y) or no (n)')
-        yn = raw_input('(y/n): ')
+        yn = input('(y/n): ')
         yesnocheck(yn)
     return yn
 
-do_plot = raw_input('Make Plots and .dat files? (y/n) ')
+do_plot = input('Make Plots and .dat files? (y/n) ')
 yesnocheck(do_plot)
 
 def write_fits(filename,normname):
@@ -103,7 +103,7 @@ if do_plot == 'y':
     try:
         with open(newfilename): pass
         print(newfilename+' Allready exists')
-        yn = raw_input('Overwrite Files? (y/n):')
+        yn = input('Overwrite Files? (y/n):')
         yesnocheck(yn)
         if yn=='y':
             #spect.write_fits(newfilename)
@@ -123,7 +123,7 @@ if do_plot == 'y':
            
             print('Finished Normalization, Have Fun!')
 
-            ct = raw_input('Create Tarballs (y/n)? ')
+            ct = input('Create Tarballs (y/n)? ')
             yesnocheck(ct)
             if ct == 'y':
                 print('Creating Tarballs')
@@ -138,7 +138,7 @@ if do_plot == 'y':
             # Preform all the above operations with a new filename.
             print('Type new filename addition without .fits')
             print('Example: '+objectn+'-'+objectd+'-Normalized-blablabla')
-            newfilext = raw_input(objectn+'-'+objectd+'-Normalized-')
+            newfilext = input(objectn+'-'+objectd+'-Normalized-')
             newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized-' \
                         +newfilext+'.fits'
 
@@ -167,7 +167,7 @@ if do_plot == 'y':
            
             print('Finished Normalization, Have Fun!')
 
-            ct = raw_input('Create Tarballs (y/n)? ')
+            ct = input('Create Tarballs (y/n)? ')
             yesnocheck(ct)
             if ct == 'y':
                 print('Creating Tarballs')
@@ -199,7 +199,7 @@ if do_plot == 'y':
         fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
         os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
 
-        ct = raw_input('Create Tarballs (y/n)? ')
+        ct = input('Create Tarballs (y/n)? ')
         yesnocheck(ct)
         if ct == 'y':
             print('Creating Tarballs')
