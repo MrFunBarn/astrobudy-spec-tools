@@ -92,9 +92,9 @@ def write_fits(filename,normname):
 
 
 # Define file and directory names for file operations.
-fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
-datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
-fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
+fitplot = objectn+'-'+objectd+'-Normaliztion-Fit-Plots'
+datatxt = objectn+'-'+objectd+'-Normalized-Data-Text-Files'
+fitdata = objectn+'-'+objectd+'-Fit-Function-Text-Files'
 newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
 
 # Write the normalized data to a fits file and export the old fits header to a
@@ -115,19 +115,18 @@ if do_plot == 'y':
     spect.whole_spec_plot(25,100)
 
     try:
-        # If the files allready exist just mv files into allready 
-        # allready present dirs.
+# If the files do not exist yet.
         with open(newfilename): pass
 
-        os.system('mv *Order*.png '+fitplot)
-        os.system('mv *Normalized-Data.dat *Header.dat '+datatxt)
-        os.system('mv *Fit-Function.dat '+fitdata)
-
-    except IOError:
         os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
         os.system('mkdir '+datatxt+
-                  ' && mv *Normalized-Data.dat *Header.dat '+datatxt)
+                  ' && mv *Normalized-Data.dat ../*Header.dat '+datatxt)
         os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
+
+    except IOError:
+        os.system('mv *Order*.png '+fitplot)
+        os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
+        os.system('mv *Fit-Function.dat '+fitdata)
 
 ct = input('Create Tarballs (y/n)? ')
 yesnocheck(ct)
