@@ -76,8 +76,6 @@ def yesnocheck(yn):
         yesnocheck(yn)
     return yn
 
-do_plot = input('Make Plots and .dat files? (y/n) ')
-yesnocheck(do_plot)
 
 def write_fits(filename,normname):
     hdulist = pyfits.open('../'+filename)
@@ -92,94 +90,37 @@ def write_fits(filename,normname):
     #hdulist.writeto(filename, clobber=True)
     hdulist.close()
 
+
+# Define file and directory names for file operations.
+fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
+datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
+fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
+newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
+write_fits(filename, newfilename)
+
+# Quary as to weither the text files and plots should be made.
+do_plot = input('Make Plots and .dat files? (y/n) ')
+yesnocheck(do_plot)
+
 if do_plot == 'y':
-# Check for normalized file, if found ask if you want to overwrite then,
-# write out the final nomalized data into a new fits file and add the
-# modifications made and time of modifications. Also write the header to a
-# text file for inclusion with the data text files.
-    
-    newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
-    skip = False
     try:
+        # If the files allready exist.
         with open(newfilename): pass
-        print(newfilename+' Allready exists')
-        yn = input('Overwrite Files? (y/n):')
-        yesnocheck(yn)
-        if yn=='y':
-            #spect.write_fits(newfilename)
-            # Define file and directory names for file operations.
-            fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
-            datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
-            fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
 
-            print('Moving Files')
-            os.system('mv *Order*.png '+fitplot)
-            os.system('mv *Normalized-Data.dat *Header.dat '+datatxt)
-            os.system('mv *Fit-Function.dat '+fitdata)
+        # write the spectra and fit to text files.
+        spect.dump_text_files(newfilename)
 
-            # Draw a plot of the entire spectrum for referance.
-            print('Generating Whole Spectrum Plot')
-            spect.whole_spec_plot(25,100)
-           
-            print('Finished Normalization, Have Fun!')
+        print('Moving Files')
+        os.system('mv *Order*.png '+fitplot)
+        os.system('mv *Normalized-Data.dat *Header.dat '+datatxt)
+        os.system('mv *Fit-Function.dat '+fitdata)
 
-            ct = input('Create Tarballs (y/n)? ')
-            yesnocheck(ct)
-            if ct == 'y':
-                print('Creating Tarballs')
-                os.system('tar -czf '+fitplot+
-                          '.tgz '+fitplot)
-                os.system('tar -czf '+datatxt+
-                          '.tgz '+datatxt)
-                os.system('tar -czf '+fitdata+
-                          '.tgz '+fitdata)
-            skip = True
-        else:
-            # Preform all the above operations with a new filename.
-            print('Type new filename addition without .fits')
-            print('Example: '+objectn+'-'+objectd+'-Normalized-blablabla')
-            newfilext = input(objectn+'-'+objectd+'-Normalized-')
-            newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized-' \
-                        +newfilext+'.fits'
-
-            fitplot = objectn+'-'+objectd+ \
-                      'Normaliztion-Fit-Plots-'+newfilext
-            datatxt = objectn+'-'+objectd+ \
-                      'Normalized-Data-Text-Files-'+newfilext
-            fitdata = objectn+'-'+objectd+ \
-                      'Fit-Function-Text-Files-'+newfilext
-
-             #           write_fits(newfilename)
-            # Define file and directory names for file operations.
-            fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
-            datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
-            fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
-
-            print('Moving Files')
-            os.system('mv *Order*.png '+fitplot)
-            os.system('mv *Normalized-Data.dat *Header.dat '+datatxt)
-            os.system('mv *Fit-Function.dat '+fitdata)
-
-
-            # Draw a plot of the entire spectrum for referance.
-            print('Generating Whole Spectrum Plot')
-            spect.whole_spec_plot(25,100)
-           
-            print('Finished Normalization, Have Fun!')
-
-            ct = input('Create Tarballs (y/n)? ')
-            yesnocheck(ct)
-            if ct == 'y':
-                print('Creating Tarballs')
-                os.system('tar -czf '+fitplot+
-                          '.tgz '+fitplot)
-                os.system('tar -czf '+datatxt+
-                          '.tgz '+datatxt)
-                os.system('tar -czf '+fitdata+
-                          '.tgz '+fitdata)
+        # Draw a plot of the entire spectrum for referance.
+        print('Generating Whole Spectrum Plot')
+        spect.whole_spec_plot(25,100)
+        
 
     except IOError:
-
         spect.plot_order_fits()
         write_fits(filename,newfilename)
 #        head = hdulist[0].header.tostring(sep="\n", endcard=False)
@@ -187,32 +128,22 @@ if do_plot == 'y':
 #        spect.dump_text_files()
 #        hdulist.close()
 
-# Create .tgz archive of all the fit and data .dat files and the normaliztion
-# referance images and remove all the .dat and .png files outside of archive.
-    if skip == False:
         print('Building Directory Tree and Moving Files!')
-        fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
         os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
-        datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
         os.system('mkdir '+datatxt+
                   ' && mv *Normalized-Data.dat *Header.dat '+datatxt)
-        fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
         os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
 
-        ct = input('Create Tarballs (y/n)? ')
-        yesnocheck(ct)
-        if ct == 'y':
-            print('Creating Tarballs')
-            os.system('tar -czf '+fitplot+
-                      '.tgz '+fitplot)
-            os.system('tar -czf '+datatxt+
-                      '.tgz '+datatxt)
-            os.system('tar -czf '+fitdata+
-                      '.tgz '+fitdata)
+ct = input('Create Tarballs (y/n)? ')
+yesnocheck(ct)
+if ct == 'y':
+    print('Creating Tarballs')
+    os.system('tar -czf '+fitplot+
+              '.tgz '+fitplot)
+    os.system('tar -czf '+datatxt+
+              '.tgz '+datatxt)
+    os.system('tar -czf '+fitdata+
+              '.tgz '+fitdata)
 
-# Draw a plot of the entire spectrum for referance.
-    if skip == False:
-        spect.whole_spec_plot(25,100)
-
-        print('Finished Normalization, Have Fun!')
-    os.chdir(pwd)
+print('Finished Normalization, Have Fun!')
+os.chdir(pwd)
