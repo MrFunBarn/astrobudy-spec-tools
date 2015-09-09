@@ -96,6 +96,9 @@ fitplot = objectn+'-'+objectd+'Normaliztion-Fit-Plots'
 datatxt = objectn+'-'+objectd+'Normalized-Data-Text-Files'
 fitdata = objectn+'-'+objectd+'Fit-Function-Text-Files'
 newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
+
+# Write the normalized data to a fits file and export the old fits header to a
+# text file.
 write_fits(filename, newfilename)
 
 # Quary as to weither the text files and plots should be made.
@@ -103,32 +106,24 @@ do_plot = input('Make Plots and .dat files? (y/n) ')
 yesnocheck(do_plot)
 
 if do_plot == 'y':
+    # write the spectra and fit to text files.
+    spect.dump_text_files(newfilename)
+    spect.plot_order_fits()
+
+    # Draw a plot of the entire spectrum for referance.
+    print('Generating Whole Spectrum Plot')
+    spect.whole_spec_plot(25,100)
+
     try:
-        # If the files allready exist.
+        # If the files allready exist just mv files into allready 
+        # allready present dirs.
         with open(newfilename): pass
 
-        # write the spectra and fit to text files.
-        spect.dump_text_files(newfilename)
-
-        print('Moving Files')
         os.system('mv *Order*.png '+fitplot)
         os.system('mv *Normalized-Data.dat *Header.dat '+datatxt)
         os.system('mv *Fit-Function.dat '+fitdata)
 
-        # Draw a plot of the entire spectrum for referance.
-        print('Generating Whole Spectrum Plot')
-        spect.whole_spec_plot(25,100)
-        
-
     except IOError:
-        spect.plot_order_fits()
-        write_fits(filename,newfilename)
-#        head = hdulist[0].header.tostring(sep="\n", endcard=False)
-#        hdulist[0].header.totextfile(objectn+'-'+objectd+'-Header.dat')
-#        spect.dump_text_files()
-#        hdulist.close()
-
-        print('Building Directory Tree and Moving Files!')
         os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
         os.system('mkdir '+datatxt+
                   ' && mv *Normalized-Data.dat *Header.dat '+datatxt)
