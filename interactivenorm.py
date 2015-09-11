@@ -204,7 +204,7 @@ class SpecNormalize():
             self.fig1.canvas.draw()
             return
 
-        # Define a section of data to trim.
+        # (Trim) Define a section of data to trim.
         if event.key == 'T':
             if self.state['editting_fit'] == False:
                 self.state['trimming'] = True
@@ -217,7 +217,7 @@ class SpecNormalize():
                 self.base_draw()
                 self.fig1.canvas.draw()
 
-        # Clear the plot and the selected points.
+        # (Clear) the plot and the selected points.
         if event.key == 'C':
             self.fitpoints[self.order] = 0
             self.state['editting_fit'] = False
@@ -231,8 +231,9 @@ class SpecNormalize():
             self.base_draw()
             self.fig1.canvas.draw()
 
-        # Safely disconect the canvas and close the figure or, if editting the
-        # fit, leave editting mode and go back to browse/select mode.
+        # (Quit,quit) Safely disconect the canvas and close the figure or, if
+        # editting the fit, leave editting mode and go back to browse/select
+        # mode.
         if event.key == 'Q':
             if self.state['editting_fit'] == False:
                 self.quit()
@@ -243,13 +244,13 @@ class SpecNormalize():
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
 
-        # Fit a spline and redarw plots.
-        if event.key == 's' and self.state['editting_fit'] == False:
+        # (Fit) a spline and redarw plots.
+        if event.key == 'l' and self.state['editting_fit'] == False:
             self.state['fitted'][self.order] = True
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
 
-        # Edit the allready fit data.
+        # (Edit) the allready fit data.
         if self.state['fitted'][self.order] == True and event.key == 'e':
             self.state['editting_fit'] = True
             self.base_draw()
@@ -615,7 +616,7 @@ class SpecNormalize():
           n=3*i
           sm[i,0] = ( x[n,0] + x[n+1,0] + x[n+2,0] ) / 3
           sm[i,1] = ( x[n,1] + x[n+1,1] + x[n+2,1] ) / 3
-        self.sm[order] = sm
+        #self.sm[order] = sm
         self.state['w_smoothed'][order] = True
         if self.state['trimmed'][order] == True:
             masked = np.empty(np.shape(self.sm[order]))
@@ -636,6 +637,42 @@ class SpecNormalize():
                                                       mask=masked)
 
     
+    def norm_smooth3(self, x, smorder=False):
+        # A version of smooth3x that is designed to simply return a smoothed
+        # version of the passed array without, altering any execution state
+        # variables or objects. Was made to solve a problem in whole_spec_plot
+        # where an array seprate from self.sm was needed.
+        if smorder == False: order=self.order
+        else: order = smorder
+        x = ma.compress_rows(x)
+        nelm = np.shape(x)[0]
+        sm = np.zeros( (int(math.floor(nelm/3)),2) )
+        for i in range(int(math.floor(nelm/3))):
+          n=3*i
+          sm[i,0] = ( x[n,0] + x[n+1,0] + x[n+2,0] ) / 3
+          sm[i,1] = ( x[n,1] + x[n+1,1] + x[n+2,1] ) / 3
+        return sm
+        if self.state['trimmed'][order] == True:
+            masked = np.empty(np.shape(self.sm[order]))
+            masked.fill(False)
+            for r in range(np.shape(self.spec_trim_points[order])[0]):
+                start = self.spec_trim_points[order][r,0]
+                end = self.spec_trim_points[order][r,1]
+                mask = np.empty(np.shape(self.sm[order]))
+                mask[:,0] = np.logical_and(self.sm[order][:,0] >= start,
+                                           self.sm[order][:,0] <= end)
+                mask[:,1] = np.logical_and(self.sm[order][:,0] >= start,
+                                           self.sm[order][:,0] <= end)
+                maskednew1 = np.where(mask[:,0] == True)
+                maskednew2 = np.where(mask[:,1] == True)
+                masked[maskednew1,0] = True
+                masked[maskednew2,1] = True
+            #self.sm[order] = ma.masked_array(self.sm[order],
+                            #                          mask=masked)
+            smoo = ma.masked_array(self.sm[order],mask=masked)
+            return smoo
+
+
     # Make plots of the rawdata fit and resulting normalized spectra for future
     # reference. Will only make a plot for orders that have been fit.
     def plot_order_fits(self):
@@ -699,23 +736,21 @@ class SpecNormalize():
         ax.xaxis.set_minor_locator(minorLocator)
         ax.xaxis.set_major_locator(majorLocator)
         for order in range(self.num_orders):
-            #print(self.sm[order],self.norm[order])
             if self.state['fitted'][order] == False: continue
-            if type(self.sm[order]) == int:
-                self.smooth3(self.norm[order], smorder=order)
-            middle_index = int(len(self.sm[order][:,0]) // 2)
+            y = self.norm_smooth3(self.norm[order], smorder=order)
+            middle_index = int(len(y[:,0]) // 2)
             ro = str(order + 1)
             if order%2==0:
-                ax.plot(self.norm[order][:,0],self.norm[order][:,1],
+                ax.plot(y[:,0],y[:,1],
                        color='green', linewidth=.07)
-                ax.text(self.sm[order][middle_index,0], .9, ro,
+                ax.text(y[middle_index,0], .9, ro,
                         fontsize=4, color='green',
                         horizontalalignment='center',
                         va='center')
             else:
-                ax.plot(self.sm[order][:,0],self.sm[order][:,1],
+                ax.plot(y[:,0],y[:,1],
                         color='blue', linewidth=.07)
-                ax.text(self.sm[order][middle_index,0], 1.1, ro,
+                ax.text(y[middle_index,0], 1.1, ro,
                         fontsize=4, color='blue',
                         horizontalalignment='center',
                         va='center')
