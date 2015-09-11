@@ -638,9 +638,10 @@ class SpecNormalize():
 
     
     def norm_smooth3(self, x, smorder=False):
-        # the order keyword and acompanying if statement allow the function be
-        # called on a specific order (as in plotting) or on the current order
-        # specified by state (as during interacvie normalization).
+        # A version of smooth3x that is designed to simply return a smoothed
+        # version of the passed array without, altering any execution state
+        # variables or objects. Was made to solve a problem in whole_spec_plot
+        # where an array seprate from self.sm was needed.
         if smorder == False: order=self.order
         else: order = smorder
         x = ma.compress_rows(x)
