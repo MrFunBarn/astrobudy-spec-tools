@@ -72,7 +72,7 @@ def yesnocheck(yn):
         return yn
     else:
         print('Please enter yes (y) or no (n)')
-        yn = input('(y/n): ')
+        yn = raw_input('(y/n): ')
         yesnocheck(yn)
     return yn
 
@@ -102,7 +102,7 @@ newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
 write_fits(filename, newfilename)
 
 # Quary as to weither the text files and plots should be made.
-do_plot = input('Make Plots and .dat files? (y/n) ')
+do_plot = raw_input('Make Plots and .dat files? (y/n) ')
 yesnocheck(do_plot)
 
 if do_plot == 'y':
@@ -128,7 +128,7 @@ if do_plot == 'y':
         os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
         os.system('mv *Fit-Function.dat '+fitdata)
 
-ct = input('Create Tarballs (y/n)? ')
+ct = raw_input('Create Tarballs (y/n)? ')
 yesnocheck(ct)
 if ct == 'y':
     print('Creating Tarballs')
