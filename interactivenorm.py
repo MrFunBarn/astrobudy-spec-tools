@@ -204,7 +204,7 @@ class SpecNormalize():
             self.fig1.canvas.draw()
             return
 
-        # Define a section of data to trim.
+        # (Trim) Define a section of data to trim.
         if event.key == 'T':
             if self.state['editting_fit'] == False:
                 self.state['trimming'] = True
@@ -217,7 +217,7 @@ class SpecNormalize():
                 self.base_draw()
                 self.fig1.canvas.draw()
 
-        # Clear the plot and the selected points.
+        # (Clear) the plot and the selected points.
         if event.key == 'C':
             self.fitpoints[self.order] = 0
             self.state['editting_fit'] = False
@@ -231,8 +231,9 @@ class SpecNormalize():
             self.base_draw()
             self.fig1.canvas.draw()
 
-        # Safely disconect the canvas and close the figure or, if editting the
-        # fit, leave editting mode and go back to browse/select mode.
+        # (Quit,quit) Safely disconect the canvas and close the figure or, if
+        # editting the fit, leave editting mode and go back to browse/select
+        # mode.
         if event.key == 'Q':
             if self.state['editting_fit'] == False:
                 self.quit()
