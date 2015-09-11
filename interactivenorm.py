@@ -243,13 +243,13 @@ class SpecNormalize():
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
 
-        # Fit a spline and redarw plots.
-        if event.key == 's' and self.state['editting_fit'] == False:
+        # (Fit) a spline and redarw plots.
+        if event.key == 'l' and self.state['editting_fit'] == False:
             self.state['fitted'][self.order] = True
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
 
-        # Edit the allready fit data.
+        # (Edit) the allready fit data.
         if self.state['fitted'][self.order] == True and event.key == 'e':
             self.state['editting_fit'] = True
             self.base_draw()
