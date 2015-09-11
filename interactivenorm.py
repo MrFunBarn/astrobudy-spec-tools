@@ -606,6 +606,7 @@ class SpecNormalize():
         # the order keyword and acompanying if statement allow the function be
         # called on a specific order (as in plotting) or on the current order
         # specified by state (as during interacvie normalization).
+        print('smoothing order = '+str(smorder))
         if smorder == False: order=self.order
         else: order = smorder
         x = ma.compress_rows(x)
@@ -616,7 +617,7 @@ class SpecNormalize():
           n=3*i
           sm[i,0] = ( x[n,0] + x[n+1,0] + x[n+2,0] ) / 3
           sm[i,1] = ( x[n,1] + x[n+1,1] + x[n+2,1] ) / 3
-        self.sm[order] = sm
+        #self.sm[order] = sm
         self.state['w_smoothed'][order] = True
         if self.state['trimmed'][order] == True:
             masked = np.empty(np.shape(self.sm[order]))
@@ -637,6 +638,42 @@ class SpecNormalize():
                                                       mask=masked)
 
     
+    def norm_smooth3(self, x, smorder=False):
+        # the order keyword and acompanying if statement allow the function be
+        # called on a specific order (as in plotting) or on the current order
+        # specified by state (as during interacvie normalization).
+        print('smoothing order = '+str(smorder))
+        if smorder == False: order=self.order
+        else: order = smorder
+        x = ma.compress_rows(x)
+        nelm = np.shape(x)[0]
+        sm = np.zeros( (int(math.floor(nelm/3)),2) )
+        for i in range(int(math.floor(nelm/3))):
+          n=3*i
+          sm[i,0] = ( x[n,0] + x[n+1,0] + x[n+2,0] ) / 3
+          sm[i,1] = ( x[n,1] + x[n+1,1] + x[n+2,1] ) / 3
+        return sm
+        if self.state['trimmed'][order] == True:
+            masked = np.empty(np.shape(self.sm[order]))
+            masked.fill(False)
+            for r in range(np.shape(self.spec_trim_points[order])[0]):
+                start = self.spec_trim_points[order][r,0]
+                end = self.spec_trim_points[order][r,1]
+                mask = np.empty(np.shape(self.sm[order]))
+                mask[:,0] = np.logical_and(self.sm[order][:,0] >= start,
+                                           self.sm[order][:,0] <= end)
+                mask[:,1] = np.logical_and(self.sm[order][:,0] >= start,
+                                           self.sm[order][:,0] <= end)
+                maskednew1 = np.where(mask[:,0] == True)
+                maskednew2 = np.where(mask[:,1] == True)
+                masked[maskednew1,0] = True
+                masked[maskednew2,1] = True
+            #self.sm[order] = ma.masked_array(self.sm[order],
+                            #                          mask=masked)
+            smoo = ma.masked_array(self.sm[order],mask=masked)
+            return smoo
+
+
     # Make plots of the rawdata fit and resulting normalized spectra for future
     # reference. Will only make a plot for orders that have been fit.
     def plot_order_fits(self):
@@ -702,23 +739,23 @@ class SpecNormalize():
         for order in range(self.num_orders):
             #print(self.sm[order],self.norm[order])
             if self.state['fitted'][order] == False: continue
-            if type(self.sm[order]) == int:
+            #if type(self.sm[order]) == int:
             #    print("calling smooth -----------------------")
-                self.smooth3(self.norm[order], smorder=order)
-            #print("------------------------------------------"+str(self.sm[order]))
-            middle_index = int(len(self.sm[order][:,0]) // 2)
+            y = self.norm_smooth3(self.norm[order], smorder=order)
+            print("------------------------------------------"+str(self.sm[order]))
+            middle_index = int(len(y[:,0]) // 2)
             ro = str(order + 1)
             if order%2==0:
-                ax.plot(self.norm[order][:,0],self.norm[order][:,1],
+                ax.plot(y[:,0],y[:,1],
                        color='green', linewidth=.07)
-                ax.text(self.sm[order][middle_index,0], .9, ro,
+                ax.text(y[middle_index,0], .9, ro,
                         fontsize=4, color='green',
                         horizontalalignment='center',
                         va='center')
             else:
-                ax.plot(self.sm[order][:,0],self.sm[order][:,1],
+                ax.plot(y[:,0],y[:,1],
                         color='blue', linewidth=.07)
-                ax.text(self.sm[order][middle_index,0], 1.1, ro,
+                ax.text(y[middle_index,0], 1.1, ro,
                         fontsize=4, color='blue',
                         horizontalalignment='center',
                         va='center')
