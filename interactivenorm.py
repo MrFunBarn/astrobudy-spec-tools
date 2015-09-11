@@ -606,7 +606,6 @@ class SpecNormalize():
         # the order keyword and acompanying if statement allow the function be
         # called on a specific order (as in plotting) or on the current order
         # specified by state (as during interacvie normalization).
-        print('smoothing order = '+str(smorder))
         if smorder == False: order=self.order
         else: order = smorder
         x = ma.compress_rows(x)
@@ -642,7 +641,6 @@ class SpecNormalize():
         # the order keyword and acompanying if statement allow the function be
         # called on a specific order (as in plotting) or on the current order
         # specified by state (as during interacvie normalization).
-        print('smoothing order = '+str(smorder))
         if smorder == False: order=self.order
         else: order = smorder
         x = ma.compress_rows(x)
@@ -737,12 +735,8 @@ class SpecNormalize():
         ax.xaxis.set_minor_locator(minorLocator)
         ax.xaxis.set_major_locator(majorLocator)
         for order in range(self.num_orders):
-            #print(self.sm[order],self.norm[order])
             if self.state['fitted'][order] == False: continue
-            #if type(self.sm[order]) == int:
-            #    print("calling smooth -----------------------")
             y = self.norm_smooth3(self.norm[order], smorder=order)
-            print("------------------------------------------"+str(self.sm[order]))
             middle_index = int(len(y[:,0]) // 2)
             ro = str(order + 1)
             if order%2==0:
