@@ -703,7 +703,9 @@ class SpecNormalize():
             #print(self.sm[order],self.norm[order])
             if self.state['fitted'][order] == False: continue
             if type(self.sm[order]) == int:
+            #    print("calling smooth -----------------------")
                 self.smooth3(self.norm[order], smorder=order)
+            #print("------------------------------------------"+str(self.sm[order]))
             middle_index = int(len(self.sm[order][:,0]) // 2)
             ro = str(order + 1)
             if order%2==0:
