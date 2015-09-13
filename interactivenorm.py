@@ -265,17 +265,17 @@ class SpecNormalize():
                 if self.order < (self.num_orders-1):
                     self.order = self.order + 1
                     if self.state['w_smoothed'][self.order] == False:
-                        self.smooth3
+                        self.smooth3(self.rawspec[self.order])
                     self.base_draw()
                     plt.draw()
 
         # (Previous) Go back an order.
-        if event.key in ['p','down','left']:
+        if event.key in ['b','down','left']:
             if self.state['editting_fit'] == False:
                 if self.order >= 1:
                     self.order = self.order - 1
                     if self.state['w_smoothed'][self.order] == False:
-                        self.smooth3
+                        self.smooth3(self.rawspec[self.order])
                     self.base_draw()
                     plt.draw()
 
@@ -287,7 +287,7 @@ class SpecNormalize():
         # Smooth the spectra with a 3px boxcar. Doesn't actually change the
         # data, just makes a smoothed version an plots it. The norm preview
         # plot always shows un-smoothed data.
-        if event.key == 'b':
+        if event.key == 'm':
             self.smooth3(self.rawspec[self.order])
             self.state['smoothed'] = True
             self.base_draw()
@@ -298,7 +298,7 @@ class SpecNormalize():
 
         # Un-Smooth the spectra. Just changes the state so that the un-smoothed
         # spectra is plotted again.
-        if event.key == 'B' and self.state['smoothed'] == True:
+        if event.key == 'M' and self.state['smoothed'] == True:
             self.state['smoothed'] = False
             self.base_draw()
             if (self.state['editting_fit'] == True or
