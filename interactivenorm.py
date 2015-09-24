@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import numpy as np
 import numpy.ma as ma
+from scipy import stats
 from scipy.interpolate import InterpolatedUnivariateSpline
 import pyfits
 
@@ -36,7 +37,8 @@ import pyfits
 
 class SpecNormalize():
     """Interactivly fit the continuum of a spectra and normalize it."""
-    def __init__(self,rawspec,objectn='',objectd='',units=r'$\AA$',order=0):
+    def __init__(self,rawspec,objectn='',objectd='',units=r'$\AA$',order=0,
+                 ref_fit=False):
         self.pick = 0
         self.order = order
         self.rawspec = ma.masked_array(rawspec)
@@ -45,6 +47,7 @@ class SpecNormalize():
         self.units = units
         self.norm = copy.deepcopy(self.rawspec)
         self.fit = copy.deepcopy(self.rawspec)
+        self.ref_fit = ref_fit
         self.trimmed_spec = copy.deepcopy(self.rawspec)
         self.num_orders = len(self.rawspec)
         self.sm = [0] * self.num_orders
@@ -60,11 +63,23 @@ class SpecNormalize():
         fitted = [False] * self.num_orders
         trimmed  = [False] * self.num_orders
         w_smoothed = [False] * self.num_orders
+        show_ref = [0] * self.num_orders
+        # read in a referance fit if suplied.
         self.state = {'fitted': fitted, 'editting_fit': False,
                 'w_smoothed': w_smoothed, 'trimmed': trimmed,
                 'edditing_trim': False, 'trimming': False,
-                'smoothed': False,
-                'del_trim': False}
+                'smoothed': False, 'del_trim': False,
+                'show_ref': show_ref, 'has_ref_fit': False}
+        if type(self.ref_fit) == str:
+            try:
+                self.ref_fit = ma.load( open(self.ref_fit, 'rb'))
+                self.state['has_ref_fit'] = True
+            except:
+                print('Error: Could not read referance fit from file')
+                self.state['has_ref_fit'] = False
+        else:
+            self.ref_fit = ref_fit
+            self.state['has_ref_fit'] = False
 
 
     def start_norm(self):
@@ -89,6 +104,13 @@ class SpecNormalize():
                                      self.objectd+'-trimmed-spec.p', 'rb'))
             self.spec_trim_points = pickle.load( open(self.objectn+'-'+
                                      self.objectd+'-spec-trim-points.p', 'rb'))
+        # Reading the ref_fit has to come after the read of self.state so that
+        # has_ref_fit will be correct if normalizition is started on a file that
+        # was previously used with ref_fit but, the ref_fit file was not
+        # supplied when is was opend again.
+        if self.state['has_ref_fit'] == True:
+            self.ref_fit = ma.load( open(
+                               self.objectn+'-'+self.objectd+'-fit-ref.p', 'rb'))
 
 
     def write_pickle(self):
@@ -100,6 +122,9 @@ class SpecNormalize():
         ma.dump( self.norm, open(self.objectn+'-'+self.objectd+'-norm.p',
                     'wb'))
         ma.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit.p',
+                    'wb'))
+        if self.state['has_ref_fit'] == True:
+            ma.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit-guide.p',
                     'wb'))
         pickle.dump( self.state,
                     open(self.objectn+'-'+self.objectd+'-state.p', 'wb'))
@@ -114,7 +139,6 @@ class SpecNormalize():
                                      self.objectd+'-trimmed-spec.p', 'wb'))
             pickle.dump(self.spec_trim_points, open(self.objectn+'-'+
                                      self.objectd+'-spec-trim-points.p', 'wb'))
-
 
 
     def _click_event(self, event):
@@ -140,10 +164,22 @@ class SpecNormalize():
 
     def _key_press(self, event):
         """Map keys to various methods/operations"""
+        # (scale ref_fit) This comed first because it needs to steel all the key
+        # presses except for q,Q, and w,W to prevent errors and prevent the user
+        # form navigating orders or something while scaling.
+        if (self.state['show_ref'][self.order] == 4 and event.key in
+            ['up','down','left','right','n','u','h','j','b','e,','T','C']):
+            self.scale_ref_fit(event)
+            self.base_draw()
+            self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
+                              str(self.order)+' Mode: Scaling fit guide')
+            self.fig1.canvas.draw()
+            return
 
-        # If you are in edit mode (hitting e after a fit has been made with f)
+        # (edit Mode) If you are in edit mode (hitting e after a fit has been
+        # made with f)
         if (self.state['editting_fit'] == True and event.key in
-            ['up','right','down','left','control','alt','D','A']):
+            ['up','right','down','left','control','alt','D','A','n','u','h','j']):
             ystep = 0.05*(self.rawspec[self.order][self.pick,1])
             xstep = ( (self.rawspec[self.order][-1,0]-
                       self.rawspec[self.order][0,0]) /
@@ -160,6 +196,14 @@ class SpecNormalize():
             elif event.key == 'left':
                 self.fitpoints[self.order][self.pick,0] = \
                                  self.fitpoints[self.order][self.pick,0]-xstep
+            elif event.key == 'u':
+                self.fitpoints[self.order][self.pick,1] = \
+                                 self.fitpoints[self.order][self.pick,1]+\
+                                 (ystep*.1)
+            elif event.key == 'n':
+                self.fitpoints[self.order][self.pick,1] = \
+                                 self.fitpoints[self.order][self.pick,1]-\
+                                 (ystep*.1)
             elif event.key == 'alt' and self.pick < (len(self.fitpoints) - 1):
                 self.pick += 1
             elif event.key == 'control' and self.pick > 0:
@@ -238,6 +282,11 @@ class SpecNormalize():
             if self.state['editting_fit'] == False:
                 self.quit()
         if event.key ==  'q':
+            if self.state['show_ref'][self.order] == 4:
+                self.state['show_ref'][self.order] = 3
+                self.base_draw()
+                self.fig1.canvas.draw()
+        if event.key ==  'q' and self.state['editting_fit'] == True:
             self.state['editting_fit'] = False
             self.write_pickle()
             self.base_draw()
@@ -250,6 +299,32 @@ class SpecNormalize():
             self.spline_fit_and_plot()
             self.fig1.canvas.draw()
 
+        # (ref_fit) toggle of view ref_fit or edit it's scaleing. 0 means
+        # that ref_fit will not be displayed, 1 show ref_fit auto scaled, 3 show
+        # ref_fit with the user deffined scaleing, and 4 means edditing the
+        # ref_fit scale, 2 means don't show but, fit_ref was scaled so if it's
+        # toggled back on, don't auto_scale the it.
+        if event.key == 'r' and self.state['has_ref_fit'] == True:
+            if self.state['show_ref'][self.order] == 0:
+                self.state['show_ref'][self.order] = 1
+                self.auto_adjust_ref_fit()
+            elif self.state['show_ref'][self.order] == 1:
+                self.state['show_ref'][self.order] = 0
+            elif self.state['show_ref'][self.order] == 3:
+                self.state['show_ref'][self.order] = 2
+            elif self.state['show_ref'][self.order] == 2:
+                self.state['show_ref'][self.order] = 3
+            self.base_draw()
+            self.fig1.canvas.draw()
+        if event.key == 'R' and self.state['has_ref_fit'] == True:
+            if self.state['show_ref'][self.order] in (1,3):
+                self.state['show_ref'][self.order] = 4
+                self.base_draw()
+                self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
+                          str(self.order)+' Mode: Scaling fit guide')
+                self.fig1.canvas.draw()
+
+
         # (Edit) the allready fit data.
         if self.state['fitted'][self.order] == True and event.key == 'e':
             self.state['editting_fit'] = True
@@ -260,7 +335,7 @@ class SpecNormalize():
             self.fig1.canvas.draw()
 
         # (Next) Advance to the next order.
-        if event.key in ['n','up','right']:
+        if event.key in ['up','right']:
             if self.state['editting_fit'] == False:
                 if self.order < (self.num_orders-1):
                     self.order = self.order + 1
@@ -270,7 +345,7 @@ class SpecNormalize():
                     plt.draw()
 
         # (Previous) Go back an order.
-        if event.key in ['b','down','left']:
+        if event.key in ['down','left']:
             if self.state['editting_fit'] == False:
                 if self.order >= 1:
                     self.order = self.order - 1
@@ -384,6 +459,10 @@ class SpecNormalize():
         if self.state['trimming'] == True:
             self.ax.set_title(self.objectn+' '+self.objectd+' Order-'+
                               str(self.order+1)+' Mode: Trimming')
+        if (self.state['has_ref_fit'] == True and self.state['show_ref'][self.order] in
+            (1,3,4)):
+            self.ax.plot(self.rawspec[self.order][:,0], 
+                             self.ref_fit[self.order][:,1], 'k--')
 
 
     def spline_fit_and_plot(self):
@@ -458,6 +537,36 @@ class SpecNormalize():
                      self.fitpoints[self.order][self.pick,1], 'ro')
         self.ax2.plot(self.fitpoints[self.order][self.pick,0], 1, 'ro')
         self.fig1.canvas.draw()
+
+
+    def auto_adjust_ref_fit(self):
+        # scale the referance fit to match the flux scale of the current order
+        # as closely as possible. The median of the scaled differnce at every
+        # pixle is used because it seems to give a better match than just using
+        # any of the other methods I tried.
+        difList = []
+        for i in range(0,len(self.ref_fit[self.order][:,1]),1):
+            fitmean = self.ref_fit[self.order][i,1]
+            specmean = self.rawspec[self.order][i,1]
+            diff = specmean/fitmean
+            difList.extend([diff])
+        meandiff = np.median(difList)
+        self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*meandiff
+
+
+    def scale_ref_fit(self,event):
+        if event.key == 'up':
+            self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*1.05
+            print('up')
+        if event.key == 'down':
+            self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*.95
+            print('down')
+        if event.key == 'u':
+            self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*1.005
+            print('up small')
+        if event.key == 'n':
+            self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*.995
+            print('down small')
 
 
     def delete_trim_reg(self, event):
@@ -636,7 +745,7 @@ class SpecNormalize():
             self.sm[order] = ma.masked_array(self.sm[order],
                                                       mask=masked)
 
-    
+
     def norm_smooth3(self, x, smorder=False):
         # A version of smooth3x that is designed to simply return a smoothed
         # version of the passed array without, altering any execution state

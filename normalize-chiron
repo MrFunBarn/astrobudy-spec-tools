@@ -17,8 +17,9 @@ import interactivenorm
 
 orders = range(62)
 
-if len(sys.argv) != 2: 
-    print("Error: must give me one file to work on!")
+if len(sys.argv) != 2 and len(sys.argv) != 3: 
+    print("usage: normalize-chiron name-of-file-to-edit.fits "\
+           "[optional]location-of-referance-file.p")
     exit()
 
 # Read in the fits file, retirve header info for latter use and pull out set
@@ -29,6 +30,10 @@ objectn = header['object']
 objectn = objectn.split('-')[0] #in case of combined name and date.
 objectd = header['UTSHUT']
 objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
+
+# If given, pull the referance fit pickle file from the cmd line arguments.
+if len(sys.argv) == 3:
+    ref_spec = sys.argv[2]
 
 # Check the current Dir(where cmd was run) and IF it is not a directory named
 # specificaly for the current object and it's date of observation move to
@@ -52,12 +57,18 @@ for band in range(np.shape(spec)[0]):
     
 # start normalizing the spectra with interactive norm and if your renormalizing
 # the data, load the previously pickled data and start from there.
-spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
+# If given, pull the referance fit pickle file from the cmd line arguments.
+if len(sys.argv) == 3:
+    ref_spec = '../'+str(sys.argv[2])
+    spect = interactivenorm.SpecNormalize(spectra,objectn,
+                                  objectd,ref_fit=ref_spec)
+else:
+    spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
 try:
     spect.read_pickle()
 except:
     pass
-
+#spect.show_ref_fit()
 spect.start_norm()
 spect.write_pickle()
 spec = spectra
