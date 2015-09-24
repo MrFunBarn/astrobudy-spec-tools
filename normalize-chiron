@@ -68,7 +68,6 @@ try:
     spect.read_pickle()
 except:
     pass
-#spect.show_ref_fit()
 spect.start_norm()
 spect.write_pickle()
 spec = spectra

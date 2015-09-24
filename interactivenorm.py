@@ -70,7 +70,7 @@ class SpecNormalize():
                 'edditing_trim': False, 'trimming': False,
                 'smoothed': False, 'del_trim': False,
                 'show_ref': show_ref, 'has_ref_fit': False}
-        if type(self.ref_fit) == str:
+        if type(self.ref_fit) == str and self.state['has_ref_fit'] == False:
             try:
                 self.ref_fit = ma.load( open(self.ref_fit, 'rb'))
                 self.state['has_ref_fit'] = True
@@ -108,9 +108,9 @@ class SpecNormalize():
         # has_ref_fit will be correct if normalizition is started on a file that
         # was previously used with ref_fit but, the ref_fit file was not
         # supplied when is was opend again.
-        if self.state['has_ref_fit'] == True:
-            self.ref_fit = ma.load( open(
-                               self.objectn+'-'+self.objectd+'-fit-ref.p', 'rb'))
+        #if self.state['has_ref_fit'] == True:
+        self.ref_fit = ma.load( open(
+                               self.objectn+'-'+self.objectd+'-fit-guide.p', 'rb'))
 
 
     def write_pickle(self):
@@ -124,7 +124,7 @@ class SpecNormalize():
         ma.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit.p',
                     'wb'))
         if self.state['has_ref_fit'] == True:
-            ma.dump( self.fit, open(self.objectn+'-'+self.objectd+'-fit-guide.p',
+            ma.dump( self.ref_fit, open(self.objectn+'-'+self.objectd+'-fit-guide.p',
                     'wb'))
         pickle.dump( self.state,
                     open(self.objectn+'-'+self.objectd+'-state.p', 'wb'))
@@ -316,7 +316,8 @@ class SpecNormalize():
                 self.state['show_ref'][self.order] = 3
             self.base_draw()
             self.fig1.canvas.draw()
-        if event.key == 'R' and self.state['has_ref_fit'] == True:
+        if (event.key == 'R' and self.state['has_ref_fit'] == True and
+            self.state['editting_fit'] == False):
             if self.state['show_ref'][self.order] in (1,3):
                 self.state['show_ref'][self.order] = 4
                 self.base_draw()
@@ -557,16 +558,12 @@ class SpecNormalize():
     def scale_ref_fit(self,event):
         if event.key == 'up':
             self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*1.05
-            print('up')
         if event.key == 'down':
             self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*.95
-            print('down')
         if event.key == 'u':
             self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*1.005
-            print('up small')
         if event.key == 'n':
             self.ref_fit[self.order][:,1] = self.ref_fit[self.order][:,1]*.995
-            print('down small')
 
 
     def delete_trim_reg(self, event):
