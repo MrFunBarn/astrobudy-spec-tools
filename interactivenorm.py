@@ -116,7 +116,7 @@ class SpecNormalize():
     def write_pickle(self):
         # Pickle the current state of the of the data so that progres can be
         # saved.
-        print('pickling')
+        print('Saving Progress')
         self.state['trimming'] = False
         self.state['editting_fit'] = False
         ma.dump( self.norm, open(self.objectn+'-'+self.objectd+'-norm.p',
@@ -205,16 +205,13 @@ class SpecNormalize():
                                  self.fitpoints[self.order][self.pick,1]-\
                                  (ystep*.1)
             elif event.key == 'alt' and self.pick < (len(self.fitpoints) - 1):
-                self.pick += 1
-            elif event.key == 'control' and self.pick > 0:
                 self.pick -= 1
+            elif event.key == 'control' and self.pick > 0:
+                self.pick += 1
             elif event.key == 'D' and len(self.fitpoints[self.order][:,0]) > 4:
                 print('Deleteing Point '+
                       str(self.fitpoints[self.order][self.pick,:]))
-                print(self.fitpoints[self.order])
-                print(self.pick)
                 cut = np.array([self.pick])
-                print(cut)
                 self.fitpoints[self.order] = \
                            np.delete(self.fitpoints[self.order],
                                    cut, 0)
@@ -775,8 +772,8 @@ class SpecNormalize():
                 masked[maskednew2,1] = True
             #self.sm[order] = ma.masked_array(self.sm[order],
                             #                          mask=masked)
-            smoo = ma.masked_array(self.sm[order],mask=masked)
-            return smoo
+            sm = ma.masked_array(self.sm[order],mask=masked)
+            return sm
 
 
     # Make plots of the rawdata fit and resulting normalized spectra for future
@@ -826,11 +823,11 @@ class SpecNormalize():
         return
     
     def whole_spec_plot(self,minor,major):
-        print('Generating Plot of all orders/bands')
+        print('Generating Whole Spectra Plot')
         minorLocator=MultipleLocator(minor)
         majorLocator=MultipleLocator(major)
         xmin = self.norm[0][0,0]
-        xmax = np.amax(self.norm[:][-1,0])
+        xmax = np.amax(self.norm[-1][-1,0])
         ymax = 1.5
         fig = plt.figure(figsize=(16, 2))
         ax = fig.add_subplot(1,1,1,autoscale_on=False,
@@ -841,7 +838,7 @@ class SpecNormalize():
         ax.tick_params(axis='both', which='major', labelsize=6)
         ax.xaxis.set_minor_locator(minorLocator)
         ax.xaxis.set_major_locator(majorLocator)
-        for order in range(self.num_orders):
+        for order in range(0,self.num_orders,1):
             if self.state['fitted'][order] == False: continue
             y = self.norm_smooth3(self.norm[order], smorder=order)
             middle_index = int(len(y[:,0]) // 2)
@@ -866,7 +863,7 @@ class SpecNormalize():
 
     def dump_text_files(self, header=False): 
     # write the normalized spectra and the fit function to a (wave flux) 
-    # columb text file (seprate for each band/order.
+    # columb text file (seprate file for each band/order).
         for order in range(self.num_orders):
             if type(self.fitpoints[order]) != int:
                 normspecname = str(self.objectn+'-'+self.objectd+'-'+'Order'
