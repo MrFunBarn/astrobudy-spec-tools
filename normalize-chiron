@@ -17,8 +17,9 @@ import interactivenorm
 
 orders = range(62)
 
-if len(sys.argv) != 2: 
-    print("Error: must give me one file to work on!")
+if len(sys.argv) != 2 and len(sys.argv) != 3: 
+    print("usage: normalize-chiron name-of-file-to-edit.fits "\
+           "[optional]location-of-referance-file.p")
     exit()
 
 # Read in the fits file, retirve header info for latter use and pull out set
@@ -29,6 +30,10 @@ objectn = header['object']
 objectn = objectn.split('-')[0] #in case of combined name and date.
 objectd = header['UTSHUT']
 objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
+
+# If given, pull the referance fit pickle file from the cmd line arguments.
+if len(sys.argv) == 3:
+    ref_spec = sys.argv[2]
 
 # Check the current Dir(where cmd was run) and IF it is not a directory named
 # specificaly for the current object and it's date of observation move to
@@ -52,12 +57,17 @@ for band in range(np.shape(spec)[0]):
     
 # start normalizing the spectra with interactive norm and if your renormalizing
 # the data, load the previously pickled data and start from there.
-spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
+# If given, pull the referance fit pickle file from the cmd line arguments.
+if len(sys.argv) == 3:
+    ref_spec = '../'+str(sys.argv[2])
+    spect = interactivenorm.SpecNormalize(spectra,objectn,
+                                  objectd,ref_fit=ref_spec)
+else:
+    spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
 try:
     spect.read_pickle()
 except:
     pass
-
 spect.start_norm()
 spect.write_pickle()
 spec = spectra
@@ -84,7 +94,7 @@ def write_fits(filename,normname):
     now = datetime.datetime.now()
     prihdr['history'] = 'normalized on ' \
             +now.strftime("%Y-%m-%d %H:%M") 
-    hdulist[0].header.totextfile(normname+'-Header.dat')
+    hdulist[0].header.totextfile(normname+'-Header.dat', clobber=True)
     hdulist[0].data = spect.norm.filled([0])
     hdulist.writeto(normname, clobber=True)
     #hdulist.writeto(filename, clobber=True)
@@ -111,33 +121,26 @@ if do_plot == 'y':
     spect.plot_order_fits()
 
     # Draw a plot of the entire spectrum for referance.
-    print('Generating Whole Spectrum Plot')
     spect.whole_spec_plot(25,100)
 
-    try:
-# If the files do not exist yet.
-        with open(newfilename): pass
-
-        os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
-        os.system('mkdir '+datatxt+
+    # Move all the files from interactivenorm into thier own directories.
+    fp = os.path.isdir(fitplot)
+    dt = os.path.isdir(datatxt)
+    fd = os.path.isdir(fitdata)
+    print(fp, dt, fd)
+    if fp==True and dt==True and fd==True:
+        try:
+            os.system('mv *Order*.png '+fitplot)
+            os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
+            os.system('mv *Fit-Function.dat '+fitdata)
+        except:
+            print('Error: Failed to move data files into thier' \
+                  ' sub-Directories')
+    else:
+        try:
+            os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
+            os.system('mkdir '+datatxt+
                   ' && mv *Normalized-Data.dat ../*Header.dat '+datatxt)
-        os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
-
-    except IOError:
-        os.system('mv *Order*.png '+fitplot)
-        os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
-        os.system('mv *Fit-Function.dat '+fitdata)
-
-ct = input('Create Tarballs (y/n)? ')
-yesnocheck(ct)
-if ct == 'y':
-    print('Creating Tarballs')
-    os.system('tar -czf '+fitplot+
-              '.tgz '+fitplot)
-    os.system('tar -czf '+datatxt+
-              '.tgz '+datatxt)
-    os.system('tar -czf '+fitdata+
-              '.tgz '+fitdata)
 
 print('Finished Normalization, Have Fun!')
 os.chdir(pwd)

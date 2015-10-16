@@ -33,7 +33,7 @@ def on_scroll(event):
     plt.title(filename)
     plt.xlabel(r'Wavelength ($\AA$)')
     plt.ylabel('Flux')
-    ax.text(.5,0.1,order,
+    ax.text(.5,0.1,str(order+1),
             horizontalalignment='center',transform=ax.transAxes)
     ax.plot(spec[order,:,0],spec[order,:,1])
     plt.draw()
@@ -60,7 +60,7 @@ def on_key(event):
     plt.title(filename)
     plt.xlabel(r'Wavelength ($\AA$)')
     plt.ylabel('Flux')
-    ax.text(.5,0.1,order,
+    ax.text(.5,0.1,str(order+1),
             horizontalalignment='center',transform=ax.transAxes)
     ax.plot(spec[order,:,0],spec[order,:,1])
     plt.draw()
@@ -98,7 +98,7 @@ ax.set_xlim(xmin, xmax)
 plt.title(filename)
 plt.xlabel(r'Wavelength ($\AA$)')
 plt.ylabel('Flux')
-ax.text(.5,.1,order,
+ax.text(.5,.1,str(order+1),
         horizontalalignment='center',transform=ax.transAxes)
 ax.plot(spec[order,:,0],spec[order,:,1], label=objectd)
 plt.show()
