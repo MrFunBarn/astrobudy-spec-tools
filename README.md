@@ -8,7 +8,7 @@ astrobudy-spec-tools
 
 ## License  
 
-Astropy is licensed under a 3-clause BSD style license - see the
+Astrobudy-spec-tools is licensed under a 3-clause BSD style license - see the
 ``LICENSE`` file.
 
 
