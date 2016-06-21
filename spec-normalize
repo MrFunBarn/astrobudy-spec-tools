@@ -12,25 +12,31 @@ import pyfits
 import interactivenorm
 
 
-def menu():
-    print('Choose an Instrument:')
+def main():
+    if len(sys.argv) != 2 and len(sys.argv) != 3: 
+        print("usage: spec-normalize name-of-file-to-edit.fits "\
+               "[optional]location-of-referance-file.p")
+        #exit()
+        
+    filename = sys.argv[1]
+
+    print('Instrument Menu:')
     print('1) CHIRON')
+    print('2) SpeX')
+    print('3) Exit')
     selection = int(input())
     if selection == 1:
-        chiron()
+        chiron(filename)
+    if selection == 3:
+        pass
 
 
-def chiron():
+def chiron(filename):
     orders = range(62)
 
-    if len(sys.argv) != 2 and len(sys.argv) != 3: 
-        print("usage: normalize-chiron name-of-file-to-edit.fits "\
-               "[optional]location-of-referance-file.p")
-        exit()
 
 # Read in the fits file, retirve header info for latter use and pull out set
 # the objets name and date of observation into variables for record keeping.
-    filename = sys.argv[1]
     spec, header = pyfits.getdata(filename, 0, header=True)
     objectn = header['object']
     objectn = objectn.split('-')[0] #in case of combined name and date.
@@ -157,4 +163,4 @@ def chiron():
     os.chdir(pwd)
 
 if __name__ == '__main__':
-    menu()
+    main()
