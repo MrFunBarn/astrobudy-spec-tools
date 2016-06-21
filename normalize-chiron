@@ -11,141 +11,150 @@ import pyfits
 
 import interactivenorm
 
-# Normalize-CHIRON version 2.0.3
-# Written by Brandon Bell April 2013
+
+def menu():
+    print('Choose an Instrument:')
+    print('1) CHIRON')
+    selection = int(input())
+    if selection == 1:
+        chiron()
 
 
-orders = range(62)
+def chiron():
+    orders = range(62)
 
-if len(sys.argv) != 2 and len(sys.argv) != 3: 
-    print("usage: normalize-chiron name-of-file-to-edit.fits "\
-           "[optional]location-of-referance-file.p")
-    exit()
+    if len(sys.argv) != 2 and len(sys.argv) != 3: 
+        print("usage: normalize-chiron name-of-file-to-edit.fits "\
+               "[optional]location-of-referance-file.p")
+        exit()
 
 # Read in the fits file, retirve header info for latter use and pull out set
 # the objets name and date of observation into variables for record keeping.
-filename = sys.argv[1]
-spec, header = pyfits.getdata(filename, 0, header=True)
-objectn = header['object']
-objectn = objectn.split('-')[0] #in case of combined name and date.
-objectd = header['UTSHUT']
-objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
+    filename = sys.argv[1]
+    spec, header = pyfits.getdata(filename, 0, header=True)
+    objectn = header['object']
+    objectn = objectn.split('-')[0] #in case of combined name and date.
+    objectd = header['UTSHUT']
+    objectd = objectd.split('T')[0] #Keeps only date, not the time of exp.
 
 # If given, pull the referance fit pickle file from the cmd line arguments.
-if len(sys.argv) == 3:
-    ref_spec = sys.argv[2]
+    if len(sys.argv) == 3:
+        ref_spec = sys.argv[2]
 
 # Check the current Dir(where cmd was run) and IF it is not a directory named
 # specificaly for the current object and it's date of observation move to
 # that directory or make the new directory if it doesn't exist and then move
 # there.
-newdir = objectn+'-'+objectd+'/'
-pwd = os.getcwd()
-if pwd.split('/')[-1] != objectn+'-'+objectd:
-    try:
-        os.chdir(pwd+'/'+newdir)
-    except:
-        os.system('mkdir '+pwd+'/'+newdir)
-        os.chdir(newdir)
-        
+    newdir = objectn+'-'+objectd+'/'
+    pwd = os.getcwd()
+    if pwd.split('/')[-1] != objectn+'-'+objectd:
+        try:
+            os.chdir(pwd+'/'+newdir)
+        except:
+            os.system('mkdir '+pwd+'/'+newdir)
+            os.chdir(newdir)
+            
 # Re-format the spectra array into a list of arrays for interactive norm to
 # proccess. This is done so that interactive norm can handle spectra with
 # differnt sized orders.
-spectra = []
-for band in range(np.shape(spec)[0]):
-    spectra.append(np.array(spec[band,:,:]))
-    
+    spectra = []
+    for band in range(np.shape(spec)[0]):
+        spectra.append(np.array(spec[band,:,:]))
+        
 # start normalizing the spectra with interactive norm and if your renormalizing
 # the data, load the previously pickled data and start from there.
 # If given, pull the referance fit pickle file from the cmd line arguments.
-if len(sys.argv) == 3:
-    ref_spec = '../'+str(sys.argv[2])
-    spect = interactivenorm.SpecNormalize(spectra,objectn,
-                                  objectd,ref_fit=ref_spec)
-else:
-    spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
-try:
-    spect.read_pickle()
-except:
-    pass
-spect.start_norm()
-spect.write_pickle()
-spec = spectra
-
-
-def yesnocheck(yn):
-    """Check weither or not user yes/no input is in the right format and if
-    it's not, ask for new input"""
-    if yn =='y':
-        return yn
-    elif yn=='n':
-        return yn
+    if len(sys.argv) == 3:
+        ref_spec = '../'+str(sys.argv[2])
+        spect = interactivenorm.SpecNormalize(spectra,objectn,
+                                      objectd,ref_fit=ref_spec)
     else:
-        print('Please enter yes (y) or no (n)')
-        yn = raw_input('(y/n): ')
-        yesnocheck(yn)
-    return yn
+        spect = interactivenorm.SpecNormalize(spectra,objectn,objectd)
+    try:
+        spect.read_pickle()
+    except:
+        pass
+    spect.start_norm()
+    spect.write_pickle()
+    spec = spectra
 
 
-def write_fits(filename,normname):
-    hdulist = pyfits.open('../'+filename)
-    data = hdulist[0].data
-    prihdr = hdulist[0].header
-    now = datetime.datetime.now()
-    prihdr['history'] = 'normalized on ' \
-            +now.strftime("%Y-%m-%d %H:%M") 
-    hdulist[0].header.totextfile(normname+'-Header.dat', clobber=True)
-    hdulist[0].data = spect.norm.filled([0])
-    hdulist.writeto(normname, clobber=True)
-    #hdulist.writeto(filename, clobber=True)
-    hdulist.close()
+    def yesnocheck(yn):
+        """Check weither or not user yes/no input is in the right format and if
+        it's not, ask for new input"""
+        if yn =='y':
+            return yn
+        elif yn=='n':
+            return yn
+        else:
+            print('Please enter yes (y) or no (n)')
+            yn = input('(y/n): ')
+            yesnocheck(yn)
+        return yn
+
+
+    def write_fits(filename,normname):
+        hdulist = pyfits.open('../'+filename)
+        data = hdulist[0].data
+        prihdr = hdulist[0].header
+        now = datetime.datetime.now()
+        prihdr['history'] = 'normalized on ' \
+                +now.strftime("%Y-%m-%d %H:%M") 
+        hdulist[0].header.totextfile(normname+'-Header.dat', clobber=True)
+        hdulist[0].data = spect.norm.filled([0])
+        hdulist.writeto(normname, clobber=True)
+        #hdulist.writeto(filename, clobber=True)
+        hdulist.close()
 
 
 # Define file and directory names for file operations.
-fitplot = objectn+'-'+objectd+'-Normaliztion-Fit-Plots'
-datatxt = objectn+'-'+objectd+'-Normalized-Data-Text-Files'
-fitdata = objectn+'-'+objectd+'-Fit-Function-Text-Files'
-newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
+    fitplot = objectn+'-'+objectd+'-Normaliztion-Fit-Plots'
+    datatxt = objectn+'-'+objectd+'-Normalized-Data-Text-Files'
+    fitdata = objectn+'-'+objectd+'-Fit-Function-Text-Files'
+    newfilename = pwd+'/'+objectn+'-'+objectd+'-Normalized.fits'
 
 # Write the normalized data to a fits file and export the old fits header to a
 # text file.
-write_fits(filename, newfilename)
+    write_fits(filename, newfilename)
 
 # Quary as to weither the text files and plots should be made.
-do_plot = raw_input('Make Plots and .dat files? (y/n) ')
-yesnocheck(do_plot)
+    do_plot = input('Make Plots and .dat files? (y/n) ')
+    yesnocheck(do_plot)
 
-if do_plot == 'y':
-    # write the spectra and fit to text files.
-    spect.dump_text_files(newfilename)
-    spect.plot_order_fits()
+    if do_plot == 'y':
+        # write the spectra and fit to text files.
+        spect.dump_text_files(newfilename)
+        spect.plot_order_fits()
 
-    # Draw a plot of the entire spectrum for referance.
-    spect.whole_spec_plot(25,100)
+        # Draw a plot of the entire spectrum for referance.
+        spect.whole_spec_plot(25,100)
 
-    # Move all the files from interactivenorm into thier own directories.
-    fp = os.path.isdir(fitplot)
-    dt = os.path.isdir(datatxt)
-    fd = os.path.isdir(fitdata)
-    print(fp, dt, fd)
-    if fp==True and dt==True and fd==True:
-        try:
-            os.system('mv *Order*.png '+fitplot)
-            os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
-            os.system('mv *Fit-Function.dat '+fitdata)
-        except:
-            print('Error: Failed to move data files into thier' \
-                  ' sub-Directories')
-    else:
-        try:
-            os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
-            os.system('mkdir '+datatxt+
-                  ' && mv *Normalized-Data.dat ../*Header.dat '+datatxt)
-            os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
-        except IOError:
-             print('Error: Failed to make data subdirectories and move '\
-                      'data files into thier' \
+        # Move all the files from interactivenorm into thier own directories.
+        fp = os.path.isdir(fitplot)
+        dt = os.path.isdir(datatxt)
+        fd = os.path.isdir(fitdata)
+        print(fp, dt, fd)
+        if fp==True and dt==True and fd==True:
+            try:
+                os.system('mv *Order*.png '+fitplot)
+                os.system('mv *Normalized-Data.dat ../*Header.dat '+datatxt)
+                os.system('mv *Fit-Function.dat '+fitdata)
+            except:
+                print('Error: Failed to move data files into thier' \
                       ' sub-Directories')
+        else:
+            try:
+                os.system('mkdir '+fitplot+' && mv *Order*.png '+fitplot)
+                os.system('mkdir '+datatxt+
+                      ' && mv *Normalized-Data.dat ../*Header.dat '+datatxt)
+                os.system('mkdir '+fitdata+' && mv *Fit-Function.dat '+fitdata)
+            except IOError:
+                 print('Error: Failed to make data subdirectories and move '\
+                          'data files into thier' \
+                          ' sub-Directories')
 
-print('Finished Normalization, Have Fun!')
-os.chdir(pwd)
+    print('Finished Normalization, Have Fun!')
+    os.chdir(pwd)
+
+if __name__ == '__main__':
+    menu()
