@@ -94,7 +94,7 @@ def chiron(filename):
             return yn
         else:
             print('Please enter yes (y) or no (n)')
-            yn = input('(y/n): ')
+            yn = raw_input('(y/n): ')
             yesnocheck(yn)
         return yn
 
@@ -124,7 +124,7 @@ def chiron(filename):
     write_fits(filename, newfilename)
 
 # Quary as to weither the text files and plots should be made.
-    do_plot = input('Make Plots and .dat files? (y/n) ')
+    do_plot = raw_input('Make Plots and .dat files? (y/n) ')
     yesnocheck(do_plot)
 
     if do_plot == 'y':
