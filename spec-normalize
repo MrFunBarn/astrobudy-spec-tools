@@ -27,7 +27,7 @@ def main():
     selection = int(input())
     if selection == 1:
         chiron(filename)
-    if selection == 3:
+    if selection == 2:
         spex_merged(filename)
     if selection == 3:
         pass
